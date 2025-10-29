@@ -386,5 +386,8 @@ c
    material messages off
    batch messages off
 c
-*input from file test_60_commands
-stop
+ output commands use file "test_60_get_output" steps 1-1000
+c
+ compute displacements for loading pull step 420
+c
+ stop
