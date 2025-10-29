@@ -44,15 +44,12 @@ c
 
  restart from file 'seb_db'
    compute displacements for loading bend step 40
-   *input test_18_get_j
    save to file 'seb_db'
 c
    compute displacements for loading bend step 50
-   *input test_18_get_j
    save to file 'seb_db'
 c
    compute displacements for loading bend step 60
-   *input test_18_get_j
    save to file 'seb_db'
   stop
 
