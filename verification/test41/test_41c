@@ -82,7 +82,7 @@
    user_routine off
 !
  compute displacements for loading test step 15
-  output displacements 3781
+ output displacements 3781
 !  
 !  save to file "restart.db"
 ! 
