@@ -31,6 +31,7 @@ material panel $ linear elastic
                tan_e 100 alphax 1.0e-06 alphay 1.0e-06 alphaz 1.0e-06
 number of nodes 63 elements 24
 coordinates
+ *echo off
       1  0.000000000E+00  0.100000000E+01  0.000000000E+00
       2  0.000000000E+00  0.000000000E+00  0.100000000E+01
       3  0.100000000E+01  0.000000000E+00  0.000000000E+00
@@ -185,6 +186,7 @@ constraints
       62      u    0.000000E+00      v    0.000000E+00
       63      v    0.000000E+00
 c
+ *echo on
  table piston_one rows 5 type piston
   columns time flowpressure mach velocity isentropic,
                xdirection ydirection zdirection
@@ -222,68 +224,18 @@ c
    extrapolate off
    display tied mesh mpcs off
 c
-c
- compute displacements for loading test step 1
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
-c
- compute displacements for loading test step 2
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
-c
- compute displacements for loading test step 3
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
-c
- compute displacements for loading test step 4
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
-c
- compute displacements for loading test step 5
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
-c
- compute displacements for loading test step 6
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
-c
- compute displacements for loading test step 7
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
-c
- compute displacements for loading test step 8
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
-c
- compute displacements for loading test step 9
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
-c
- compute displacements for loading test step 10
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
-c
- compute displacements for loading test step 11
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
+ output commands use file "get_output.inp" steps 1-21, 31 41
 c
  compute displacements for loading test step 21
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
 c
-save to file 'step_21.restart'
+ save to file 'step_21.restart'
 c
  compute displacements for loading test step 31
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
 c
  nonlinear analysis parameters
    time step 100.0
    newmark beta 1.0
 c
  compute displacements for loading test step 41
- output displacements 1 5 7-12 14-15 30-31 33
- output velocities 1 5 7-12 14-15 30-31 33
-c
 c
 stop
