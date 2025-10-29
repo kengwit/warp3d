@@ -654,25 +654,9 @@ nonlinear analysis parameters
    material messages off
    show details off
 c
-compute displacements for loading MA2 step 100
- output displacements 7 20 39 56 72
- output noheader strain 1-8 stress 1-8
+ output commands use file "get_output.inp" steps 100-500 by 100
 c
-compute displacements for loading MA2 step 200
- output displacements 7 20 39 56 72
- output noheader strain 1-8 stress 1-8
-c
-compute displacements for loading MA2 step 300
- output displacements 7 20 39 56 72
- output noheader strain 1-8 stress 1-8
-c
-compute displacements for loading MA2 step 400
- output displacements 7 20 39 56 72
- output noheader strain 1-8 stress 1-8
-c
-compute displacements for loading MA2 step 500
- output displacements 7 20 39 56 72
- output noheader strain 1-8 stress 1-8
+ compute displacements for loading MA2 step 500
 c
  stop
 
