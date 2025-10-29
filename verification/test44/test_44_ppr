@@ -126,7 +126,7 @@ c
    material messages off
    consistent q-matrix on
    bbar stabilization factor 0.0
-  binary packets on file 'packets.tst'
+   binary packets on file 'packets.tst'
 c
 c        cohesive elements deleted from model when their
 c        displacement jump = 0.n x displacement jump at tractions
