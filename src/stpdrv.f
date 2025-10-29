@@ -4,7 +4,7 @@ c     *                      subroutine stpdrv                       *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 7/24/22 rhd                *
+c     *                   last modified : 10/19/25 rhd               *
 c     *                                                              *
 c     *     drive the solution process list of steps specified       *
 c     *     on the compute command. compute intermediate             *
@@ -14,7 +14,10 @@ c     ****************************************************************
 c
 c
       subroutine stpdrv( stplst, nsteps, ldnum )
-      use global_data ! old common.main
+      use global_data, only : ltmstp, incflg, new_constraints,
+     &                        new_analysis_param, stprng, histep,
+     &                        out, in, stname, num_error, nodof,
+     &                        lowstp, lodnam, current_load_time_step
 c
       use main_data, only : cnstrn, cnstrn_in, temp_nodmap,
      &  temp_nodlod, output_packets, run_user_solution_routine,
@@ -24,7 +27,9 @@ c
      &  last_step_num_iters
 c
       use damage_data, only : growth_by_kill, growth_by_release
-      use constants
+      use constants, only : one, two, eight, two, d32460, zero,
+     &                      ptone, pt75, quarter, oneptone,
+     &                      point_eight 
 c
       implicit none
 c
@@ -37,7 +42,10 @@ c
       character :: dums
       logical :: mf_ratio_change, stpdrv_error
       double precision :: mf, mf_nm1, dumd, load_reduce_fact
-      logical, parameter :: local_debug = .true.,msg_flag = .false.
+      logical, parameter :: local_debug = .true., msg_flag = .false.
+c
+c          ltmstp: last step with completed solution. = = 0 on first
+c          call here.
 c
 c          at least one convergence test for global Newton iterations
 c          must be defined to proceed
@@ -89,6 +97,10 @@ c          -----   loop over steps in user defined list -----
 c          extract each step from user step list and process.
 c          intermediate steps maybe required, e.g., compute
 c          for step 20 when 10-19 have not been computed yet.
+c          run file of output commands if defined after the step
+c          completes. Same for a file that defines domains for
+c          J computations. The code here forces the J processor
+c          to read/execute J computations.
 c
       icn    = 0; iplist = 1
       do while ( iplist .ne. 0 )
@@ -119,23 +131,161 @@ c
            call stpdrv_one_step( istep, stpdrv_error )
            if( stpdrv_error ) return
            call stpdrv_output( istep ) ! output commands file
+           call stpdrv_compute_domain( istep ) ! compute/output J values
          end do
          cycle
         else  ! no fill in needed
           call stpdrv_one_step( step, stpdrv_error )
           if( stpdrv_error ) return
           call stpdrv_output( step )  ! output commands file
+          call stpdrv_compute_domain( step )
         end if   !  diff .gt. 1
 c
       end do
       return
 c
-
-c
       contains     ! ***** note contains here *****
-
-
 c
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                 subroutine stpdrv_compute_domain             *
+c     *                                                              *
+c     *                       written by : rhd                       *
+c     *                                                              *
+c     *                   last modified : 10/28/25 rhd               *
+c     *                                                              *
+c     *     drive the optional computation of J values from user     *
+c     *     supplied file with domain definitions                    *
+c     *                                                              *
+c     ****************************************************************
+c
+      subroutine stpdrv_compute_domain( now_step )
+c      
+      use file_info, only : filcnt, max_opened_input_files, inlun
+      use main_data, only : output_jvalues_file
+      use j_data, only : comput_j, comput_i
+c      
+      implicit none
+c
+      integer :: now_step
+      logical, external :: ouchk_map_entry, matchs
+c
+c          locals
+c
+      integer :: dum, read_status, strlng                                      
+      real :: dumr                                                              
+      character(len=8)  :: dums                                                  
+      character(len=80) :: filnam, infil, line    
+      character(len=50) :: string
+      logical :: here_debug, sflag_1, sflag_2, do_j
+      double precision :: dumd                                                  
+c
+c          check to see if the user has chosen to use the
+c
+c             output J-values  use file .. after steps ....
+c
+c          feature in WARP3D. If so, drive the domain processing code
+c          to read/execute commands in the user defined file.
+c
+c          we push this file on the scan stack. on EOF, the
+c          return is back to here.
+c
+c          the file must contain ony a mix of domain
+c          definition inut, compute domain integral commands
+c          and comment lines.
+c
+c          After the return from didriv here, this code is
+c          ready to drive execution of the next load step -
+c          not to read any other commands.
+c
+      here_debug = .false.
+      if( here_debug ) then
+        write(out,*) " entered stpdrv_compute_domain"
+        write(out,*) "    now_step: ", now_step
+      end if
+      if( .not. ouchk_map_entry(now_step, 2) ) return
+c
+      filcnt = filcnt + 1                                                       
+      if( filcnt > max_opened_input_files ) then                             
+         call errmsg( 178, dum, dums, dumr, dumd )                                    
+         filcnt = filcnt - 1                                                      
+         return                                                                 
+      end if 
+c    
+c              open the file with domain definition(s) and compute 
+c              domain integral commands. Push on to scan file stack.
+c              readsc starts reading the file. skips lines until 1st non-
+c              comment line is found - presumably  domain ....
+c
+c              indom returns when it finds an input line that is
+c              not part of a domain definition. But it has read the
+c              line and the scanner has processed the first token.
+c              most often a compute domain integral line.
+c
+c              we have to handle that compute domain line here. Normally
+c              indom was called from main and just returned there to 
+c              process the usual compute domain integral command.
+c
+c              here we just call didriv to compute J-values for the
+c              domain definition. didriv does not call any scan routines.
+c              so on return the scanner has the compute domain integral
+c              command
+c    
+      infil = output_jvalues_file                                                                  
+      open( unit=inlun(filcnt), file = infil, status = 'old' )                  
+      in = inlun(filcnt)                                                        
+      call setin( inlun(filcnt) )                                                 
+      write(out,*) " "; write(out,9000) trim( infil )     
+c   
+c               continue reading the file of domain definitions and
+c               compute commands. must do a read here to see if we
+c               have reached an eof on the file. if so, pop the
+c               scan input file stack and return.
+c
+c               otherwise we've already read the next input line
+c               in the file of domain definitions and
+c               compute commands.do a backspace so we can let
+c               the scanner read the line for processing.
+c
+c               use the open do loop since we don't know how many 
+c               domains are defined in the input file.
+      do
+        read(in,fmt="(a80)",iostat=read_status) line
+        if( is_iostat_end( read_status ) ) then
+          call infile_stpdrv_close(output_jvalues_file )
+          return
+        end if
+        backspace( unit=in )   
+        call readsc ! indom resets to get word domain
+        if( .not. matchs("domain",4) ) then
+           call entits( string, strlng )
+           write(out,9100) string(1:strlng)
+           call die_abort
+        end if    
+        sflag_1 = .false.
+        call indom( sflag_1, sflag_2 ) 
+        if( .not. matchs("compute",4) ) then
+           call entits( string, strlng )
+           write(out,9100) string(1:strlng)
+           call die_abort
+        end if    
+        comput_j = .true.
+        comput_i = .false. 
+        call thyme( 12,1 );call didriv;call thyme( 12,2 );  
+        if( here_debug ) then
+          write(out,*) ".... stpdrv_compute_domain. back from didriv " 
+        end if   
+      end do
+c                                                                               
+      return                                                                    
+ 9000 format (1x,'>>>>> input file is: ',a)        
+ 9100  format(/1x,'>>>>> FATAL ERROR: unrecognized input: ',a,
+     &       /1x,'                   while processing a a file of J',
+     &       /1x,'                   definitions/compute commands',
+     &       /1x,'                   job terminated....')
+c
+      end subroutine stpdrv_compute_domain
 c
 c     ****************************************************************
 c     *                                                              *
@@ -143,7 +293,7 @@ c     *                 subroutine stpdrv_output                     *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 02/10/2018 rhd             *
+c     *                   last modified : 10/19/25 rhd               *
 c     *                                                              *
 c     *     drive the optional, user-define output commands stored   *
 c     *     in a file completion of a load (time) step               *
@@ -154,7 +304,6 @@ c
       implicit none
 c
       integer :: now_step
-c
 c
 c          locals
 c
@@ -182,14 +331,13 @@ c          peeks at the next input lines before scan, then
 c          backspacing and invoking scan it all looks ok.
 c
 c          if the user has defined the file and we just completed
-c          a load (time) step indicated in the command, we open anc
+c          a load (time) step indicated in the command, we open and 
 c          run commands in the output file. Then close the
 c          output commands file.
 c
-
       here_debug = .false.
       if( here_debug ) write(out,*) " entered stpdrv_output"
-      if( .not. ouchk_map_entry(now_step) ) return
+      if( .not. ouchk_map_entry(now_step, 1) ) return
 c
 c          open the file of output commands and make scan aware
 c          of it. the global variable "in" has the i/o device number
@@ -246,7 +394,6 @@ c
      & /14x,'job terminated...',//)
 c
       end subroutine stpdrv_output
-c
 c
 c     ****************************************************************
 c     *                                                              *

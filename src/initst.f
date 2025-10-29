@@ -4,7 +4,7 @@ c     *                      subroutine initst                       *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 5/18/23 rhd                *
+c     *                   last modified : 10/20/25 rhd               *
 c     *                                                              *
 c     *     at program startup, initializes various variables and    *
 c     *     arrays needed to set up the program correctly.           *
@@ -45,7 +45,8 @@ c
      &                      fgm_node_values_cols,
      &                      initial_state_option, initial_state_step,
      &                      initial_stresses_input,
-     &                      id_dollar, force_solver_rebuild
+     &                      id_dollar, force_solver_rebuild,
+     &                      output_jvalues_file
 c
       use stiffness_data 
       use file_info
@@ -792,8 +793,10 @@ c
 c
 c                       initialize the file name for the
 c                       "output commands file ... steps ..."
+c                       same for output J-values use file ...
 c
       output_command_file(1:) = " "
+      output_jvalues_file(1:) = " "
 c
 c                       message counters to shut of gazillions of
 c                       the same messages for large models

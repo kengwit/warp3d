@@ -4,13 +4,11 @@ c     *                      subroutine store                        *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 5/18/23 rhd                *
+c     *                   last modified : 10/20/25 rhd               *
 c     *                                                              *
 c     *                  writes analysis restart file                *
 c     *                                                              *
 c     ****************************************************************
-c
-c
 c
       subroutine store( savnam, savfil, sbflg1, sbflg2 )
       use global_data ! old common.main
@@ -816,6 +814,8 @@ c
 c                       save for output commands file ... information
 c                       save file name and bitmap list if it exists
 c
+c                       same for output J-values use file ...
+c
       write(fileno) output_command_file
       local_length = 0
       if( allocated( output_step_bitmap_list ) )
@@ -823,6 +823,15 @@ c
       write(fileno) local_length
       if( local_length > 0 )
      &   write(fileno) output_step_bitmap_list
+      write(fileno) check_data_key
+c      
+      write(fileno) output_jvalues_file
+      local_length = 0
+      if( allocated( output_jvalues_step_bitmap_list ) )
+     &   local_length = size( output_jvalues_step_bitmap_list )
+      write(fileno) local_length
+      if( local_length > 0 )
+     &   write(fileno) output_jvalues_step_bitmap_list
       write(fileno) check_data_key
 c
 c                       save initial stress data

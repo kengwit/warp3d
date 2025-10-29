@@ -4,7 +4,7 @@ c     *                      subroutine oudrive                      *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 12/3/2019 rhd              *
+c     *                   last modified : 10/18/2025 rhd             *
 c     *                                                              *
 c     *     drive output of any and all quantities requested by the  *
 c     *     user. all phases of output except output of residual     *
@@ -54,7 +54,14 @@ c
          call oudriv_cmds
          return
       end if
+cc
+c                       output J-values ..... return
 c
+      if( matchs("J",1) ) then
+         call oudriv_j_values
+         return
+      end if
+
 c                       output model in a flat file. return
 c
       if( matchs( 'model', 4 ) ) then
@@ -487,7 +494,7 @@ c     *                 subroutine oudriv_cmds                       *
 c     *                                                              *
 c     *                    written by : rhd                          *
 c     *                                                              *
-c     *                   last modified : 3/21/2022 rhd              *
+c     *                   last modified : 10/18/25 rhd               *
 c     *                                                              *
 c     *     scan store the file name for output commands file ...    *
 c     *     get the integerlist of load steps and convert to a bit   *
@@ -611,7 +618,7 @@ c
             ok = .false.
             exit
          end if
-         call ouset_map_entry( istep )
+         call ouset_map_entry( istep, 1)
       end do
 c
       if( .not. ok ) then
@@ -647,34 +654,222 @@ c
       end
 c     ****************************************************************
 c     *                                                              *
+c     *                 subroutine oudriv_j_values                   *
+c     *                                                              *
+c     *                    written by : rhd                          *
+c     *                                                              *
+c     *                   last modified : 10/18/2025 rhd             *
+c     *                                                              *
+c     *     scan & store name for domain definitions file ...        *
+c     *     get the integerlist of load steps and convert to a bit   *
+c     *     map for very simple look up if compute J should be done  *
+c     *     after a load step                                        *
+c     *                                                              *
+c     ****************************************************************
+c
+c
+      subroutine oudriv_j_values
+      use global_data, only : out, num_error
+      use main_data, only: output_jvalues_file, 
+     &                     output_jvalues_step_bitmap_list
+      use allocated_integer_list
+      implicit none
+c
+c                      locals
+c
+      integer :: dummy, char, errnum, icn, iplist, nchar, istep, lenlst,
+     &           list_size
+      integer, allocatable :: intlst(:)
+      logical, external :: matchs, label, string
+      logical :: ok
+      character(len=80) :: bad_input
+c
+      output_jvalues_file(1:) = " "
+      if( allocated( output_jvalues_step_bitmap_list ) )
+     &      deallocate( output_jvalues_step_bitmap_list )
+c
+c                      get the name of file that contains only
+c                      domain definition commands (and comments)
+c                      splunj is a dummy routine so
+c                      optimizers don't delete the call to matchs
+c
+c                      file must exit now or error
+c
+      if( matchs( "-", 1 ) ) call splunj
+      if( matchs( "values", 3 ) ) call splunj
+      if( matchs( "use", 3 ) ) call splunj
+      if( matchs( "file", 4 ) ) call splunj
+c
+      if( label(dummy) ) then
+        call entits( output_jvalues_file(1:), nchar )
+      elseif( string(dummy) ) then
+        call entits( output_jvalues_file(1:), nchar )
+      else
+        call entits( bad_input, nchar )
+        write(out,9310) bad_input(1:nchar)
+        num_error = num_error + 1
+        call scan_flushline
+        return
+      end if
+c
+      call infile_zap_blanks( output_jvalues_file )
+      inquire( file = output_jvalues_file, exist = ok )
+      if( .not. ok ) then
+         write(out,9300) output_jvalues_file
+         output_jvalues_file(1:) = " "
+         num_error = num_error + 1
+         call scan_flushline
+         return
+      end if
+c
+c                      must have keyword "steps" so we can detect
+c                      the integer list
+c
+      if( matchs( "after", 3 ) ) call splunj
+      if( matchs( "for",3 ) ) call splunj
+      if( .not. matchs( "steps", 4 ) ) then
+         write(out,9320)
+         output_jvalues_file(1:) = " "
+         num_error = num_error + 1
+         call scan_flushline
+         return
+      end if
+c
+c                      get the list of step numbers after which
+c                      the J-values will be computed.
+c                      a list of just keyword "all" is not ok since
+c                      user may not have given any step definitions yet.
+c                      intlst gets re-sized as needed.
+c
+      allocate( intlst(10) )
+      call scan
+      call trlist_allocated( intlst, list_size, 0, lenlst, errnum )
+c
+c                       branch on the return code from trlist. a
+c                       value of 1 indicates no error. a value of
+c                       2 indicates that the parse rules failed in
+c                       the list. a value of 3 indicates that the
+c                       list overflowed its maximum length of mxlsz.
+c                       a value of 4 indicates that no list was found.
+c                       in these last three cases, the illegal list
+c                       will be ignored and a new compute command will
+c                       be sought.
+c
+      bad_input(1:) = " "
+      if( errnum .ne. 1 ) then
+        if( errnum  == 2) then
+          call entits( bad_input, nchar )
+          write(out,9200) bad_input(1:)
+        else if( errnum == 3 ) then
+          write(out,9210)
+        else if( errnum == 4) then
+          call entits( bad_input, nchar )
+          write(out,9220) bad_input(1:)
+        end if
+        num_error = num_error + 1
+        output_jvalues_file(1:) = " "
+        call scan_flushline
+        return
+      end if
+c
+c                       list of steps found. store step numbers
+c                       in a bitmap. use 30 bits/word. traverse
+c                       the list to extract each step number.
+c
+      icn = 0; iplist = 1; ok = .true.
+c
+      do
+         if( iplist .eq. 0 ) exit
+         call trxlst( intlst, lenlst, iplist, icn, istep )
+         if( istep .le. 0) then
+            write(out,9100) istep
+            ok = .false.
+            exit
+         end if
+         call ouset_map_entry( istep, 2 )
+      end do
+c
+      if( .not. ok ) then
+         write(out,9330)
+         deallocate( output_jvalues_step_bitmap_list )
+         output_jvalues_file(1:) = " "
+         num_error = num_error + 1
+      end if
+c
+      return
+c
+ 9100 format(/1x,'>>>>> error: step number in list is not valid: ',i7 )
+ 9200 format(/1x,'>>>>> error: cannot recognize required ',
+     & 'list of step numbers',
+     & /14x,'scanning: ',a,//)
+ 9210 format(/1x,'>>>>> error: list of step numbers contains too ',
+     & 'many entries.',//)
+ 9220 format(/1x,'>>>>> error: no list of load steps found.',
+     & /14x,'scanning: ',a,
+     & /14x,'keyword: all, may not be allowed here',/)
+ 9300 format(
+     & /1x, '>>>>> error: the specified output J-values',
+     & /14x,'file does not exist. file: ',a80,//)
+ 9310 format(
+     & /1x, '>>>>> error: no name for file of domain definitions',
+     & /14x,' found. scanning: ',a,//)
+ 9320 format(
+     & /1x, '>>>>> error: required keyword steps not found.',//)
+ 9330 format(
+     & /1x, '>>>>> error: this command contained errors',//)
+c
+      return
+      end
+c     ****************************************************************
+c     *                                                              *
 c     *                 subroutine ouset_map_entry                   *
 c     *                                                              *
 c     *                    written by : rhd                          *
 c     *                                                              *
-c     *             last modified : 2/10/2018 rhd                    *
+c     *             last modified : 10/18/25 rhd                     *
 c     *                                                              *
 c     *              set bit map entry for step                      *
 c     *                                                              *
 c     ****************************************************************
 c
 c
-      subroutine ouset_map_entry( step_no )
-      use main_data, only: output_step_bitmap_list
+      subroutine ouset_map_entry( step_no, itype )
+c      
+      use main_data, only: output_step_bitmap_list, 
+     &                     output_jvalues_step_bitmap_list
+      use global_data, only : out
       implicit none
-c
-      integer :: step_no
-c
-c                      locals
-c
+c      
+      integer, intent(in) :: step_no, itype
       integer :: word, bit
+      logical :: ok
 c
-      call ouresize_step_bitmap( step_no )
-      word = (step_no - 1 ) / 30 + 1
-      bit  = step_no - ( word - 1 ) * 30 - 1
-      output_step_bitmap_list(word) =
-     &        ibset( output_step_bitmap_list(word), bit )
+      ok = .false.
+      if( itype == 1 .or. itype == 2 ) ok = .true.
+      if( .not. ok ) then
+         write(out,9000)
+         call die_abort
+      end if
+c      
+      call ouresize_step_bitmap(step_no, itype)
 c
-      return
+      select case( itype )
+      case (1)
+       associate(bitmap => output_step_bitmap_list)
+       word = (step_no - 1)/30 + 1
+       bit  = step_no - (word - 1)*30 - 1   ! 0-based bit index for IBSET
+       bitmap(word) = ibset(bitmap(word), bit)
+       end associate
+      case (2)
+       associate(bitmap => output_jvalues_step_bitmap_list)
+       word = (step_no - 1)/30 + 1
+       bit  = step_no - (word - 1)*30 - 1
+       bitmap(word) = ibset(bitmap(word), bit)
+       end associate
+      end select
+c
+      return      
+ 9000 format(/1x,'>>>>> FATAL ERROR: @ 1 in ouset_map_entry' )
       end
 
 c     ****************************************************************
@@ -683,78 +878,116 @@ c     *                 subroutine ouresize_step_bitmap              *
 c     *                                                              *
 c     *                    written by : rhd                          *
 c     *                                                              *
-c     *                   last modified : 2/10/2018 rhd              *
+c     *                   last modified : 10/18/25 rhd               *
 c     *                                                              *
 c     *     resize as needed the bitmap vector storing the list of   *
-c     *     steps for the automatic output command feature.          *
+c     *     steps                                                    *
 c     *                                                              *
 c     ****************************************************************
 c
 c
-      subroutine ouresize_step_bitmap( step_no )
-      use main_data, only: output_step_bitmap_list
+      subroutine ouresize_step_bitmap( step_no, itype )
+      use main_data, only: output_step_bitmap_list,
+     &                     output_jvalues_step_bitmap_list
       implicit none
 c
-      integer :: step_no
+      integer step_no, itype
 c
-c                      locals
-c
-      integer :: new_length, old_length, word
-      integer, allocatable, dimension(:) :: new_bitmap
-c
-      if( .not. allocated( output_step_bitmap_list ) ) then
-       allocate( output_step_bitmap_list(1) )
-       output_step_bitmap_list(1) = 0
-      end if
-c
-      old_length = size( output_step_bitmap_list )
-      word = (step_no - 1 ) / 30 + 1
-      if( word <= old_length ) return
-c
-      new_length = 2 * word ! double current req'd size
-      allocate( new_bitmap(new_length) )
-      new_bitmap = 0
-      new_bitmap(1:old_length) =
-     &                output_step_bitmap_list(1:old_length)
-      call move_alloc( new_bitmap, output_step_bitmap_list )
+      select case( itype )
+      case (1)
+         call grow_bitmap( output_step_bitmap_list, step_no )
+      case (2)
+         call grow_bitmap( output_jvalues_step_bitmap_list, step_no )
+      end select
 c
       return
-      end
+c
+      contains
+c
+      subroutine grow_bitmap( bitmap, step_no )
+      implicit none
+c
+      integer, allocatable, intent(inout) :: bitmap(:)
+      integer, intent(in) :: step_no
+c      
+      integer old_length, word, new_length
+      integer, allocatable :: new_bitmap(:)
+c
+      if( .not. allocated(bitmap) ) then
+         allocate( bitmap(1) )
+         bitmap = 0
+      end if
+c
+      old_length = size(bitmap)
+      word = (step_no - 1)/30 + 1
+      if( word <= old_length ) return
+c
+      new_length = max( 2*old_length, word )
+      allocate( new_bitmap(new_length) )
+      new_bitmap = 0
+      new_bitmap(1:old_length) = bitmap(1:old_length)
+      call move_alloc( new_bitmap, bitmap )
+c
+      return
+      end subroutine grow_bitmap
+c
+      end subroutine ouresize_step_bitmap
+
 c     ****************************************************************
 c     *                                                              *
 c     *                 function ouchk_map_entry                     *
 c     *                                                              *
 c     *                    written by : rhd                          *
 c     *                                                              *
-c     *                   last modified : 2/10/2018 rhd              *
+c     *                   last modified : 10/18/25 rhd               *
 c     *                                                              *
 c     *              check step output map for an entry              *
 c     *                                                              *
 c     ****************************************************************
 c
 c
-      function ouchk_map_entry( step_no ) result( test )
-      use main_data, only: output_step_bitmap_list
+      function ouchk_map_entry( step_no, itype ) result( test )
+      use main_data, only: output_step_bitmap_list,
+     &                     output_jvalues_step_bitmap_list
+      use global_data, only : out
       implicit none
 c
-      integer :: step_no
-      logical :: test
+      integer step_no, itype
+      logical test
 c
-c                      locals
+      integer map_length, word, bit
+      logical :: ok
 c
-      integer :: map_length, word, bit
-c
+      ok = .false.
+      if( itype == 1 .or. itype == 2 ) ok = .true.
+      if( .not. ok ) then
+         write(out,9000)
+         call die_abort
+      end if
+
       test = .false.
-      if( .not. allocated( output_step_bitmap_list ) ) return
 c
-      map_length = size( output_step_bitmap_list )
-      word = (step_no - 1 ) / 30 + 1
-      if( word > map_length ) return
-c
-      bit  = step_no - ( word - 1 ) * 30 - 1
-      test = btest( output_step_bitmap_list(word), bit )
+      select case ( itype )
+      case ( 1 )
+        if( .not. allocated(output_step_bitmap_list) ) return
+        associate( bitmap => output_step_bitmap_list )
+          map_length = size( bitmap )
+          word = (step_no - 1)/30 + 1
+          if( word > map_length ) return
+          bit  = step_no - (word - 1)*30 - 1
+          test = btest( bitmap(word), bit )
+        end associate
+      case ( 2 )
+        if( .not. allocated(output_jvalues_step_bitmap_list) ) return
+        associate( bitmap => output_jvalues_step_bitmap_list )
+          map_length = size( bitmap )
+          word = (step_no - 1)/30 + 1
+          if( word > map_length ) return
+          bit  = step_no - (word - 1)*30 - 1
+          test = btest( bitmap(word), bit )
+        end associate
+      end select
 c
       return
+ 9000 format(/1x,'>>>>> FATAL ERROR: @ 1 in ouchk_map_entry' )
       end
-
-

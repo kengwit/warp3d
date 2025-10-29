@@ -141,7 +141,7 @@ c     *                     module main_data                         *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *              last modified : 3/25/2022 rhd                   *
+c     *              last modified : 10/18/25 rhd                    *
 c     *                                                              *
 c     *     define the data structures for main, large arrays        *
 c     *     used in warp3d solutions. also other variables as we     *
@@ -443,10 +443,15 @@ c
 c
 c          file name for "output commands file ... after steps <list>'
 c          bit map to store expanded list of steps
+c          same for name of domain definition file and list of 
+c          steps to compute J-values.
 c
       character(len=80) :: output_command_file
       integer, save, allocatable, dimension(:) ::
      &         output_step_bitmap_list
+      character(len=80) :: output_jvalues_file
+      integer, save, allocatable, dimension(:) ::
+     &         output_jvalues_step_bitmap_list
 c
 c          string names for WARP3D material models
 c

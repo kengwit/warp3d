@@ -56,6 +56,8 @@ c
 c
 c                       get the domain id if there is one.
 c
+      call reset
+      if( matchs("domain",4) ) call splunj
       ltitle(1:80) = ' '
       if( label(dummy)) then
         call entits( ltitle, nchar )

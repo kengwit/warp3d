@@ -327,6 +327,7 @@ c                   on 1 domain for user-defined q-values, and
 c                   for defining-computing over automatic domains
 
       if( qvals_given ) then
+          write(out,*) '.... user q vals given'
          call didrive_user_q_values ! done with J, I calcs. time to output
       else
          call didrive_auto_domains  !   14. ....

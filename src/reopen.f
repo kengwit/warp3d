@@ -4,7 +4,7 @@ c     *                      subroutine reopen                       *
 c     *                                                              *
 c     *                      written by : bh                         *
 c     *                                                              *
-c     *                   last modified : 5/18/23 rhd                *
+c     *                   last modified : 10/20/25 rhd               *
 c     *                                                              *
 c     *          read restart file. get solution start up            *
 c     *                                                              *
@@ -816,11 +816,21 @@ c
 c                       get output commands file ... information
 c                       save file name and bitmap list if it exists
 c
+c                       same for output J-values use file ...
+c
       read(fileno) output_command_file
       read(fileno) local_length
       if( local_length > 0 ) then
         allocate( output_step_bitmap_list(local_length ) )
         read(fileno) output_step_bitmap_list
+      end if
+      call chk_data_key( fileno, 17, 0 )
+c
+      read(fileno) output_jvalues_file
+      read(fileno) local_length
+      if( local_length > 0 ) then
+        allocate( output_jvalues_step_bitmap_list(local_length ) )
+        read(fileno) output_jvalues_step_bitmap_list
       end if
       call chk_data_key( fileno, 17, 0 )
 c

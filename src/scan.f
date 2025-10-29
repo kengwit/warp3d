@@ -1977,7 +1977,7 @@ c
       incol = recsiz  
       if (  promt .and. ( inunit .eq. inremo ) )                                
      1                call wrnocr( 3h > , iotrem )                              
-      call scanin( inunit, rcard, incol, ierr )                                  
+      call scanin( inunit, rcard, incol, ierr )  
       if ( incol .eq. 0 ) go to 10                                              
       if( ierr < 0 ) go to 20                                                   
       if( ierr == 0 ) go to 40                                                  
