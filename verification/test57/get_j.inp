@@ -1,0 +1,14 @@
+domain dssy_001
+    symmetric
+    normal plane  ny  -1.0
+    node set   1,
+       1,    2,    3,    4,    5,    6,    7,    8,    9,   10,   11,   12,
+      13,   14,   15,   16,   17
+    node set   2,
+    2146, 2147, 2148, 2149, 2150, 2151, 2152, 2153, 2154, 2155, 2156, 2157,
+    2158, 2159, 2160, 2161, 2162
+    front node sets  1  2 linear
+    q-values automatic rings 20-30
+    function type a
+    print totals
+    compute domain integral
