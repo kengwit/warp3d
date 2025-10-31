@@ -44,21 +44,27 @@ if [ ! -f "$combiner" ]; then
       exit 1
 fi
 $combiner -nodes 1568 -elements 715 > combiner_output
-ok=`grep Normal combiner_output | wc -l`
-if [ !"$ok" -eq "1" ]; then
-      printf "\n>> MPI combiner program terminated abnormally\n"
-      printf   "   Exiting...\n"
-      exit 1
+ok=$(grep Normal combiner_output | wc -l)
+if [ "$ok" -ne 1 ]; then
+    printf "\n>> MPI combiner program terminated abnormally\n"
+    printf "   Exiting...\n"
+    exit 1
 fi
 #
 # Check
 #
 python=/usr/bin/python3
+#echo " @1"
 perl check_1.perl
+#echo " @2"
 perl check_2.perl
+#echo " @3"
 perl check_3.perl
+#echo " @4"
 perl check_4.perl
+#echo " @5"
 perl check_5.perl
+#echo " @6"
 tail -1 wes0000030_text | cut -c1-46 >temp1
 perl check_6.perl
 tail -1 wne0000030_text | cut -c1-46 >temp2
