@@ -52,7 +52,7 @@ c     *               can run in parallel using OpenMP               *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 1/11/2018 rhd              *
+c     *                   last modified : 10-31-2025 rhd             *
 c     *                                                              *
 c     ****************************************************************
 c
@@ -106,7 +106,7 @@ c
 c
       combine_nodal_results          = .true.
       combine_element_results        = .true.
-
+c
       allocate( nodal_stresses_step_list(last_step_no),
      &          nodal_strains_step_list(last_step_no),
      &          element_stresses_step_list(last_step_no),
@@ -152,13 +152,14 @@ c
      &  /,   ' *     From File Parts Created During Parallel      *',
      &  /,   ' *     MPI Execution of WARP3D                      *',
      &  /,   ' *                                                  *',
-     &  /,   ' *             build date:  2-10-2017               *',
+     &  /,   ' *      build date:  10-31-2025                     *',
      &  /,   ' *                                                  *',
      &  /,   ' *                                                  *',
      &  /,   ' ****************************************************'
      &  // )
  9010 format('... Using # of threads:                ',i8)
- 9020 format('... Number of model nodes, elements, steps, MPI ranks: ',
+ 9020 format(
+     & '... Number of model nodes, elements, last step, MPI ranks: ',
      &   3i8,i5)
  9100 format(//,'.... All results processed ....' )
  9110 format(/,'>>>>> Warning: 1 or more nodes in the Patran nodal',

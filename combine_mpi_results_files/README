@@ -2,7 +2,7 @@
 README for comine_mpi_result_files directory in WARP3D
 ======================================================
 
-     => last update: March 20, 2018 (RHD) <=
+     => last update: October 31, 2025 (RHD) <=
 
 This file describes the process to build and execute
 the program: combine_mpi_results
@@ -30,11 +30,11 @@ it owns entirely and its contribution to the average values at
 nodes shared with other domains.
 
 These are called "partial" result files -- each such file has the 4-digit
-processor (rank) id as the file name suffix, e.g., wnbs#####.iiii is a
-Patran compatible binary file of nodal strains where ##### is the load(time)
+processor (rank) id as the file name suffix, e.g., wnbs#######.iiii is a
+Patran compatible binary file of nodal strains where ####### is the load(time)
 step number and iiii is the MPI rank number.
 
-Similarly, the file wem00010_text_mises_gurson.0003 has
+Similarly, the file wem0000010_text_mises_gurson.0003 has
 element ('e' after 'w') state values ('m' after 'e')
 for the mises_gurson material model for load(step) 10 for processor 3
 in the 'text' (ASCII) file format.

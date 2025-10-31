@@ -378,30 +378,30 @@ c
       stress = sig_eps_type .eq. 0
 c
       if( stress ) then
-         call princ_inv_stress( node_values, num_nodes )
          call princ_stress( node_values, num_nodes )
+         call princ_stress_extras( node_values, num_nodes )
       else
          call princ_inv_strain( node_values, num_nodes )
          call princ_strain( node_values, num_nodes )
       end if
 c
-      return
+      return 
       end
 
 c     ****************************************************************
 c     *                                                              *
-c     *                  subroutine princ_inv_stress                 *
+c     *                  subroutine princ_stress_extras              *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 1/18/2017 rhd              *
+c     *                   last modified : 10/30/2025 rhd             *
 c     *                                                              *
-c     *     this subroutine computes the mises stress, principal     *
-c     *     invariants at the nodes/elements                         *
+c     *     this subroutine computes the mises stress, mean,         *
+c     *     tyriaxiality, Lode paramter (xi)                         *
 c     *                                                              *
 c     ****************************************************************
 c
-      subroutine princ_inv_stress( results, num_nodes )
+      subroutine princ_stress_extras( results, num_nodes )
       implicit none
 c
       integer :: num_nodes
@@ -409,30 +409,63 @@ c
 c
       integer :: i
       double precision, parameter :: six=6.0d0, iroot2=0.70710678118d0
+      double precision, parameter :: mises_zero_tol = 1.0d-10
+      double precision, parameter :: third = 1.0d0/3.0d0
+      double precision :: sig1, sig2, sig3, mean, mises, triaxiality,
+     &                    t1, t2, t3, r, xi           
+      integer, parameter ::
+     &   index_sig_xx  = 1,
+     &   index_sig_yy  = 2,
+     &   index_sig_zz  = 3,
+     &   index_sig_xy  = 4,
+     &   index_sig_yz  = 5,
+     &   index_sig_xz  = 6,
+     &   index_sig_U0  = 7,
+     &   index_sig_vm  = 8,
+     &   index_c1      = 9,
+     &   index_c2      = 10,
+     &   index_c3      = 11,
+     &   index_sig_mean        = 12,
+     &   index_sig_triaxiality = 13,
+     &   index_sig_Lode_xi     = 14,
+     &   index_sig_1  = 15,
+     &   index_sig_2  = 16,
+     &   index_sig_3  = 17,
+     &   index_sig_L1 = 18,
+     &   index_sig_M1 = 19,
+     &   index_sig_N1 = 20,
+     &   index_sig_L2 = 21,
+     &   index_sig_M2 = 22,
+     &   index_sig_N2 = 23,
+     &   index_sig_L3 = 24,
+     &   index_sig_M3 = 25,
+     &   index_sig_N3 = 26,
+     &   num_short_stress = 11,
+     &   num_long_stress = 26
 c
       do i = 1, num_nodes
-         results(i,8) = sqrt( (results(i,1)-results(i,2))**2+
+c
+       results(i,index_sig_vm) = sqrt( (results(i,1)-results(i,2))**2+
      &                 (results(i,2)-results(i,3))**2+
      &                 (results(i,1)-results(i,3))**2+
      &             six*(results(i,4)**2+results(i,5)**2+
      &                  results(i,6)**2) )*iroot2
-         results(i,12) = results(i,1) +  results(i,2) +
-     &                        results(i,3)
-         results(i,13) = results(i,1) * results(i,2) +
-     &                        results(i,2) * results(i,3) +
-     &                        results(i,1) * results(i,3) -
-     &                        results(i,4) * results(i,4) -
-     &                        results(i,5) * results(i,5) -
-     &                        results(i,6) * results(i,6)
-         results(i,14) = results(i,1) *
-     &            ( results(i,2) * results(i,3) -
-     &              results(i,5) * results(i,5) ) -
-     &                        results(i,4) *
-     &            ( results(i,4) * results(i,3) -
-     &              results(i,5) * results(i,6) ) +
-     &                        results(i,6) *
-     &            ( results(i,4) * results(i,5) -
-     &              results(i,2) * results(i,6) )
+c      
+       sig1 = results(i,index_sig_1)  ! principal values 1>2>3
+       sig2 = results(i,index_sig_2)
+       sig3 = results(i,index_sig_3)
+       mean = ( sig1 + sig2 + sig3 ) * third
+       mises = max( results(i,index_sig_vm), mises_zero_tol )
+       triaxiality = mean / mises
+       t1 = sig1 - mean
+       t2 = sig2 - mean
+       t3 = sig3 - mean
+       r = 13.5e0 * t1 * t2 * t3  ! except for cube root
+       results(i,index_sig_mean) = mean  ! mean
+       results(i,index_sig_triaxiality) = triaxiality  ! triaxiality
+       xi = r / mises**3.0d0
+       results(i,index_sig_Lode_xi) = xi ! Lode parameter -1 <= xi <= 1
+c    
       end do
 c
       return
