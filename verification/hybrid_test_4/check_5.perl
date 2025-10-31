@@ -4,7 +4,7 @@
 #
 #      check results for MPI combine partial files
 #
-$inputfile = 'wee000030_text';
+$inputfile = 'wee0000030_text';
 $line = ' ';
 print "\n... Check results: $inputfile\n";
 open(infile, "$inputfile") or die

@@ -6,7 +6,7 @@
 #
 $inputfile = 'temp2';
 $line = ' ';
-print "\n... Check results: wne000030_text\n";
+print "\n... Check results: wne0000030_text\n";
 open(infile, "$inputfile") or die
 "  >> Fatal Error. could not open: $inputfile\n  >> Aborting this verification segment\n\n";
 print "   ... output file opened ...\n";

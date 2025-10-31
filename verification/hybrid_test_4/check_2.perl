@@ -4,7 +4,7 @@
 #
 #      check results for MPI combine partial files
 #
-$inputfile = 'wnfs000030';
+$inputfile = 'wnfs0000030';
 $line = ' ';
 print "\n... Check results: $inputfile\n";
 open(infile, "$inputfile") or die

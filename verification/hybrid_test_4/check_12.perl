@@ -6,7 +6,7 @@
 #
 $inputfile = 'temp7';
 $line = ' ';
-print "\n... Check results: wem000030_stream_mises_gurson\n";
+print "\n... Check results: wem0000030_stream_mises_gurson\n";
 open(infile, "$inputfile") or die
 "  >> Fatal Error. could not open: $inputfile\n  >> Aborting this verification segment\n\n";
 print "   ... output file opened ...\n";

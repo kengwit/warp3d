@@ -4,7 +4,7 @@
 #
 #      check results for MPI combine partial files
 #
-$inputfile = 'wefs000030';
+$inputfile = 'wefs0000030';
 $line = ' ';
 print "\n... Check results: $inputfile\n";
 open(infile, "$inputfile") or die
