@@ -153,7 +153,7 @@ c     *                 subroutine stpdrv_compute_domain             *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 10/28/25 rhd               *
+c     *                   last modified : 11/17/25 rhd               *
 c     *                                                              *
 c     *     drive the optional computation of J values from user     *
 c     *     supplied file with domain definitions                    *
@@ -178,7 +178,9 @@ c
       character(len=8)  :: dums                                                  
       character(len=80) :: filnam, infil, line    
       character(len=50) :: string
-      logical :: here_debug, sflag_1, sflag_2, do_j
+      character(len=1)  :: c1, c2
+      logical :: here_debug, sflag_1, sflag_2, do_j, comment,
+     &           blank_line
       double precision :: dumd                                                  
 c
 c          check to see if the user has chosen to use the
@@ -256,6 +258,14 @@ c               domains are defined in the input file.
           call infile_stpdrv_close(output_jvalues_file )
           return
         end if
+        if( here_debug )write(out,9200) line(1:20)
+        c1 = line(1:1)
+        c2 = line(2:2)
+        comment = c1 == "c" .or. c1 == "C" .or. c1 == "#" .or. c1 == "!"
+        comment = comment .and. c2 == " "
+        if( comment ) cycle
+        blank_line = (verify(line, ' ') == 0)
+        if( blank_line ) cycle
         backspace( unit=in )   
         call readsc ! indom resets to get word domain
         if( .not. matchs("domain",4) ) then
@@ -284,6 +294,7 @@ c
      &       /1x,'                   while processing a a file of J',
      &       /1x,'                   definitions/compute commands',
      &       /1x,'                   job terminated....')
+ 9200 format("... Line: ",a20)
 c
       end subroutine stpdrv_compute_domain
 c
