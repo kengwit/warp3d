@@ -2325,7 +2325,7 @@ c     *                  subroutine incon_mpcs_store                 *
 c     *                                                              *
 c     *                       written by : bjb                       *
 c     *                                                              *
-c     *                   last modified : 12/22/2018 rhd             *
+c     *                   last modified : 12/3/2025 rhd              *
 c     *                                                              *
 c     *     stores a user-defined MPC equation into global data      *
 c     *     data structure                                           *
@@ -2335,7 +2335,9 @@ c
 c
       subroutine incon_mpcs_store( nterm, const, node, dof, multi )
       use mod_mpc, only : num_user_mpc, user_mpc_table
-      use global_data, only : max_mpc
+      use global_data, only : out, max_mpc, dstmap, input_ok,
+     &                        num_error
+      use main_data, only : cnstrn_in
 c
       implicit none
       include 'param_def'
@@ -2351,6 +2353,7 @@ c
       real ::     dumr, factor
       double precision :: dumd
       character(len=1) :: dums
+      logical :: header_msg
 c
       num_user_mpc = num_user_mpc + 1
       if( num_user_mpc .gt. max_mpc ) 
@@ -2375,15 +2378,72 @@ c
       factor = 1.0 / abs( multi(1) )
       if( multi(1) .gt. 0.0 ) factor = -1.0 * factor
 c
+      header_msg = .true.
       do i = 1, nterm
          user_mpc_table(num_user_mpc)%node_list(i)       = node(i)
          user_mpc_table(num_user_mpc)%dof_list(i)        = dof(i)
          user_mpc_table(num_user_mpc)%multiplier_list(i) =
      &         multi(i)*factor
+         call incon_chk( node(i), dof(i) )
       end do
+      if( .not. header_msg ) write(out,fmt="(//)") ! there were errors
 c
       return
-      end
+c
+      contains
+c     ========
+c
+      subroutine incon_chk( chk_node, chk_dof )
+      implicit  none
+c
+      integer :: chk_node, chk_dof
+      integer ::  i,  con_flag(3), dof
+      logical :: constrained
+      logical, parameter :: local_debug = .false.
+      double precision, parameter ::  initialized_value = 32460.0
+c
+c              there is an error if this term of the MOC appears
+c              in an absolute constraint.
+c
+      con_flag = 0
+      constrained = .false.
+      dof = dstmap(chk_node) + chk_dof - 1 ! index to structure vector
+      if( cnstrn_in(dof) .ne. initialized_value ) then
+        con_flag(chk_dof) = 1
+        constrained = .true.
+      end if
+c      
+      if( local_ debug ) then 
+           write(out,5010) chk_node,constrained,(con_flag(i),i=1,3)
+           write(out,*) "     .... mxndof: ",mxndof
+      end if     
+      
+      if( constrained ) then
+        input_ok = .false.
+        num_error = num_error + 1
+        if( header_msg ) write(out,5030)
+        header_msg = .false.
+        if( con_flag(1) == 1 ) then
+           write(out,5020) chk_node, 'u'
+        end if
+        if( con_flag(2) == 1 ) then
+           write(out,5020) chk_node, 'v'
+        end if
+        if( con_flag(3) == 1 ) then
+           write(out,5020) chk_node, 'w'
+        end if
+      end if
+c
+ 5010 format (4x,'>>>  Node : ',i7 /9x,'Constrained: ',l3/
+     &        18x, 6i2 )
+ 5020 format(10x, 'node: ', i8,2x,'dof: ',a1 )
+ 5030 format(/1x,'>>>>> fatal error: a term in the MPC has',
+     &  ' an absolute constraint:',/)
+c            
+      return
+      end subroutine incon_chk       
+c          
+      end subroutine incon_mpcs_store
 c     ****************************************************************
 c     *                                                              *
 c     *                     subroutine incon_flushline               *
