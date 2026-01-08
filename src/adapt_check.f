@@ -13,14 +13,14 @@ c     ****************************************************************
 c
 c
       subroutine adapt_check( scaling_adapt, process_type, step,
-     &                        iout )
+     &                        iout ) 
       use adaptive_steps
       implicit none
 c
 c              parameters
 c
       integer :: process_type, step, iout
-      double precision :: scaling_adapt
+      double precision :: scaling_adapt 
 c
 c              locals
 c

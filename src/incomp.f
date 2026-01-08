@@ -4,7 +4,7 @@ c     *                      subroutine incomp                       *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 9/9/2020 rhd               *
+c     *                   last modified : 11/7/25                    *
 c     *                                                              *
 c     *     performs the initial computations, data structure setup  *
 c     *     necessary for first (time) step i                        *
@@ -12,16 +12,18 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine incomp
-      use global_data ! old common.main
+c            
+      use global_data, only : inctop, out, newmas, douextdb, ifv,
+     &                        nodof, incflg   
       use main_data, only : incid, initial_stresses_user_routine
-      implicit integer (a-z)
-      double precision
-     &   zero
+      use constants, only : zero 
+c      
+      implicit none 
+c      
+      integer :: alloc_stat 
       integer, dimension(:), allocatable ::  temp_vec
-      logical local_debug
+      logical, parameter :: local_debug = .false.
       real, external :: wcputime
-      data local_debug / .false. /
-      data zero / 0.0d00 /
 c
 c          this code has been re-written a number of
 c          times as WARP3D evolved. At present, I believe
@@ -76,17 +78,6 @@ c
       call solid_cohes_init
       if( initial_stresses_user_routine ) call initial_sig_user_routine
 c
-c          MPI:
-c             broadcast basic model, constraint, and analysis
-c             parameter information to all the worker processors.
-c
-      if( use_mpi ) write(out,9000) wcputime(1)
-      call wmpi_send_basic
-      call wmpi_send_const
-      call wmpi_send_analysis
-      call wmpi_init_owner
-      if( use_mpi ) write(out,9005) wcputime(1)
-c
 c          allocate space for rigid contact info
 c
       call mem_allocate( 24 )
@@ -132,6 +123,7 @@ c
      & '>> computing structural diagonal mass (@ t=0)')
  9900 format('>>> FATAL ERROR: memory allocate failure...')
  9994 format('                 incid re-allocate failure. incomp')
+c 
       end
 c     ****************************************************************
 c     *                                                              *

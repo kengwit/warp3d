@@ -4,7 +4,7 @@ c     *                      subroutine incoor                       *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 10/27/2017 rhd             *
+c     *                   last modified : 12/17/20205 rhd            *
 c     *                                                              *
 c     *     this subroutine supervises and conducts the input of     *
 c     *     coordinate data pertaining to the structure's nodes.     *
@@ -147,6 +147,7 @@ c
 c
       if(.not.integr(node)) then
 c
+         call incoor_min_max
          go to 9999
 c
       else
@@ -527,4 +528,56 @@ c
  9070 format(/1x,'>>>>> error: unknown error reading Z-coordinates' )
 c
       end subroutine incoor_file
+c     ****************************************************************
+c     *                                                              *
+c     *                      subroutine incoor_min_max               *
+c     *                                                              *
+c     *                       written by : rhd                       *
+c     *                                                              *
+c     *                   last modified : 12/17/2025 rhd             *
+c     *                                                              *
+c     *     print min/max of x, y z coordinates                      *
+c     *                                                              *
+c     ****************************************************************
+c
+      subroutine incoor_min_max
+c
+      implicit none
+c
+      integer :: node, idx
+      double precision :: x, y, z, x_min, x_max, y_min, y_max,
+     &                    z_min, z_max
+c
+      x_min =  1.0d20;  x_max = -1.0d20
+      y_min =  1.0d20;  y_max = -1.0d20
+      z_min =  1.0d20;  y_max = -1.0d20
+c
+      do node = 1, nonode
+        idx = crdmap(node)
+        x = c(idx+0)
+        y = c(idx+1)
+        z = c(idx+2)
+        x_min = min( x_min, x )
+        y_min = min( y_min, y )
+        z_min = min( z_min, z )
+        x_max = max( x_max, x)
+        y_max = max( y_max, y)
+        z_max = max( z_max, z) 
+      end do
+c
+      write(out,*) " "
+      write(out,9000)               
+      write(out,9010)  x_min, x_max
+      write(out,9020)  y_min, y_max
+      write(out,9030)  z_min, z_max
+      write(out,*) " "
+c
+      return
+c
+ 9000 format(/,"...... Minimum and maximum coordinate values ......")  
+ 9010 format(10x,'X min: ',e14.6,2x,'X max: ',e14.6)    
+ 9020 format(10x,'Y min: ',e14.6,2x,'Y max: ',e14.6)    
+ 9030 format(10x,'Z min: ',e14.6,2x,'Z max: ',e14.6)    
+c
+      end subroutine incoor_min_max
       end subroutine incoor

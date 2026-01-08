@@ -2888,11 +2888,10 @@ c
      &           ' Ignoring contact surface.',/)
       go to 9999
 c
- 3320  continue
+ 3320  continue 
       num_error = num_error + 1
       write(out,8115)
- 8115 format(/1x,'>>>>> error: expecting a HYPRE keyword'
-     &                        /)
+ 8115 format(/1x,'.... availahle .....   ')
       go to 9999
 c
  3100 continue
@@ -3089,7 +3088,7 @@ c
       write (out,9350)
  9350 format(/1x,
      & '>>>>> error: cannot use direct solvers with mpi',
-     & /,16x,'version of WARP3D.  Use hypre instead.'/)
+     & /,16x,'version of WARP3D.'/)
       go to 9999
 c
  3340 continue

@@ -4,14 +4,21 @@ c     *                                                              *
 c     *  assemble & solve linear equations for a Newton iteration    *
 c     *                                                              *
 c     *                       written by  : rhd                      *
-c     *                   last modified : 2/4/24 rhd                 *
+c     *                   last modified : 11/7/25 rhd                *
 c     *                                                              *
 c     ****************************************************************
 c
-      subroutine drive_assemble_solve( first_solve, now_iteration,
+      subroutine drive_assemble_solve( first_solve, now_iteration,  
      &                                 suggested_new_precond )
-      use global_data ! old common.main
 c
+      use global_data, only : show_details, iprops, nonode, idu,
+     &                        solver_flag, out, solver_out_of_core, 
+     &                        solver_memory, solver_scr_dir, nodof,
+     &                        cstmap, mxedof, mxvl, mxconn,
+     &                        solver_mkl_iterative, solver_threads,
+     &                        num_threads, noelem, dcp, res, dstmap,
+     &                        sparse_stiff_output, sparse_stiff_binary,
+     &                        sparse_stiff_file_name, sparse_research  
       use elem_block_data, only : edest_blocks
       use main_data, only : repeat_incid, modified_mpcs,
      &                      asymmetric_assembly, force_solver_rebuild
@@ -19,10 +26,10 @@ c
      &                           k_indexes,
      &                           ncoeff_from_assembled_profile
       use mod_mpc, only : tied_con_mpcs_constructed, mpcs_exist
-      use hypre_parameters, only: precond_fail_count, hyp_trigger_step
-      use performance_data
-      use distributed_stiffness_data, only: parallel_assembly_used,
-     &                                   distributed_stiffness_used
+      use performance_data, only : start_assembly_step, assembly_total,
+     &                             ntimes_assembly, t_start_assembly,
+     &                             t_end_assembly
+      use constants, only : zero
 c
       implicit none
 c
@@ -49,7 +56,6 @@ c
      &                      local_debug3 = .false.
 c
       real, external :: wcputime
-      double precision, parameter :: zero = 0.0d00
       double precision, allocatable :: p_vec(:), k_diag(:), u_vec(:)
 c
       data old_neqns, old_ncoeff, cpu_stats, save_solver
@@ -83,26 +89,14 @@ c
 c           1. build sparsity data structures
 c              ------------------------------
 c
-c              based on decisions/checks made in mnralg,
-c              setup for threaded or MPI parallel assembly by
 c              generating the sparsity data structures
 c
         call t_start_assembly( start_assembly_step ) ! timing
-        if( .not. parallel_assembly_used ) then
-          call ds_setup_sparsity_local( iresult, use_mpi, numprocs )
-          if( iresult .eq. 1 ) then ! no equations to solve
+        call ds_setup_sparsity_local( iresult )
+        if( iresult .eq. 1 ) then ! no equations to solve
              idu(1:nodof) = zero
              return
           end if
-        end if
-        if( local_debug ) write(*,*) '... drive_assem_solve  @ 2'
-        if( parallel_assembly_used ) then
-          call ds_setup_sparsity_distributed( iresult )
-          if( iresult .eq. 0 ) then  ! no equations to solve
-             idu(1:nodof) = zero
-             return
-          end if
-        end if
         call t_end_assembly( assembly_total, start_assembly_step )
         if( local_debug ) write(*,*) '... drive_assem_solve  @ 3'
 
@@ -123,17 +117,6 @@ c                  direct/iterative solvers. The sparsity is symmetric
 c                  but not coefficients, e.g., from crystal plasticity
 c                  material model
 c
-c                - a symmetric/asymmetric assembly on root followed by
-c                  distribution to MPI ranks for solution by hypre
-c
-c                or
-c
-c                - a symmetric/asymmetric assembly on root follwed
-c                  by use of MPI cpardiso direct solver on ranks
-c
-c             => distributed assembly across MPI ranks followed by
-c                hypre or CPardiso solve.
-c
 c                neqns == 0. user has fully constrained model. did not
 c                set minimum iters = 1.
 c
@@ -144,28 +127,9 @@ c
 c      
       call t_start_assembly( start_assembly_step )
       ntimes_assembly = ntimes_assembly + 1
-      if( .not. parallel_assembly_used ) then
-        call ds_root_assembly
-        itype = 2
-        if( new_size ) itype = 1
-       end if
-      if( parallel_assembly_used ) call ds_distributed_assembly
-c
-c              distributed assembly across MPI ranks followed by
-c              do we need a distributed stiffness -- but did not use
-c              parallel assembly?  If so, take care of that now.
-c              The "true" flag indicates full (not LT) assembly and the
-c             'blockrow' parameter means agglomerate by rows and map
-c              by blocks of equal nnz size.
-c
-      if( .not. parallel_assembly_used
-     &    .and. distributed_stiffness_used ) then
-            call wmpi_alert_slaves(39)
-            call distribute_from_assembled(neqns, ncoeff,
-     &                  k_diag, p_vec, u_vec, k_coeffs, k_ptrs,
-     &                  k_indexes, .true., "blockrow", itype, out )
-      end if
-c
+      call ds_root_assembly
+      itype = 2
+      if( new_size ) itype = 1
       if( local_debug ) write(*,*) '... drive_assem_solve @ 4'
       call t_end_assembly( assembly_total, start_assembly_step )
 c
@@ -181,11 +145,8 @@ c              p_vec was set above and is the set of residual
 c              nodal forces at n+1. they include MPC effects as
 c              needed for symmetric MKL solvers.
 c
-c               hypre_solver        => solver_flag .eq. 9
 c               pardiso_asymmetric  => solver_flag .eq. 8
 c               pardiso_symmetric   => solver_flag .eq. 7
-c               cpardiso_symmetric  => solver_flag .eq. 10
-c               cpardiso_asymmetric => solver_flag .eq. 11
 c
       select case( solver_flag )
 
@@ -213,36 +174,11 @@ c
      &            solver_mkl_iterative )
         if( local_debug ) write(*,*) '... drive_assem_solve @ 5d'
 c
-
-      case( 9 ) ! hypre_solver
-c
-        call ds_drive_hypre
-        if( hyp_trigger_step ) return ! failed and wants Newton
-c
-      case( 10 ) ! symmetric cpardiso
-c
-        if( asymmetric_assembly ) then
-          write(out,9120); call die_gracefully
-        end if
-        if( local_debug ) write(*,*) '... drive_assem_solve @ 5e'
-        call wmpi_alert_slaves( 3 )
-        call cpardiso_symmetric( neqns, ncoeff, k_diag, p_vec,
-     &                          u_vec, k_coeffs, k_ptrs, k_indexes,
-     &                          cpu_stats, itype, out, myid )
-        if( local_debug ) write(*,*) '... drive_assem_solve @ 5f'
-c
-      case( 11 ) ! asymmetric cpardiso
-c
-        if( .not. asymmetric_assembly ) then
-             write(out,9125); call die_gracefully
-        end if
-        if( local_debug ) write(*,*) '... drive_assem_solve @ 5g'
-        call wmpi_alert_slaves( 31 )
-        call cpardiso_unsymmetric( neqns, nnz, k_ptrs, k_indexes,
-     &            k_coeffs,  p_vec, u_vec, cpu_stats, itype, out,
-     &            myid )
-        if( local_debug ) write(*,*) '... drive_assem_solve @ 5h'
-c
+      case( 9, 10, 11 ) ! deprecated solvers
+c            
+            write(out,9301) solver_flag
+            call die_gracefully
+ 
       case default ! bad solver type
 c
             write(out,9301) solver_flag
@@ -251,18 +187,9 @@ c
       end select
 c
       if( local_debug ) write(out,*) ' @ 6'
-      if( .not. parallel_assembly_used )
-     &  deallocate( k_diag, k_coeffs, k_ptrs, k_indexes, p_vec )
+      deallocate( k_diag, k_coeffs, k_ptrs, k_indexes, p_vec )
 c
-c          4.  for distributed assembly/solve, reorder solution vector
-c              -------------------------------------------------------
-c
-c              to eliminate the effects of the remapping
-c              to improve load balancing
-c
-      call t_start_assembly( start_assembly_step )
-      call reorder_soln_vec( u_vec )
-      call t_end_assembly( assembly_total, start_assembly_step )
+c          4.  <available>
 c
 c          5.  apply mpc equations
 c              -------------------
@@ -271,12 +198,11 @@ c              if they exist to compute the corrective displacements
 c              to du at dependent dofs.
 c
 c              compute corrections estimate of increment of
-c              lagrange multipliers over the step
-c
-c              these are nodal forces at all MPC dof to enforce the
+c              lagrange multipliers over the step. these are nodal
+c              forces at all MPC dof to enforce the
 c              multi-points constraints
 c
-c              only for symmetric systems. put into their
+c              *only for symmetric systems*. put into their
 c              positions in u_vec.
 c
       if( tied_con_mpcs_constructed .or. mpcs_exist ) then
@@ -296,10 +222,11 @@ c              Again - these are the corrective displacements to
 c              be added to du.
 c
       do i = 1, nodof
-       if( dof_eqn_map(i) .eq. 0 ) then
+       k = dof_eqn_map(i)
+       if( k .eq. 0 ) then
           idu(i) = zero
        else
-          idu(i) = u_vec(dof_eqn_map(i))
+          idu(i) = u_vec(k)
        end if
       end do
 c
@@ -341,26 +268,24 @@ c
  9900 format('>> incremental displacements: ',
      & 1000(/4x,i8, f12.8) )
 c
+      contains 
+c     ========      
 c
-       contains
-c      ========
-c
-c
+ 
 c     ****************************************************************
 c     *                                                              *
 c     *   set up equation sparsity for local assembly: symmetric     *
 c     *                                                              *
 c     *                       written by  : rhd                      *
-c     *                   last modified : 11/19/2019 rhd
+c     *                   last modified : 11/7/25 rhd                *  
 c     *                                                              *
 c     ****************************************************************
 c
-      subroutine ds_setup_sparsity_local( ireturn, using_mpi,
-     &                                    num_ranks )
+      subroutine ds_setup_sparsity_local( ireturn )
+c            
       implicit none
 c
-      integer :: ireturn, num_ranks  ! local to this routine
-      logical :: using_mpi
+      integer :: ireturn  ! local to this routine
 c
 c                    locals
 c
@@ -387,14 +312,8 @@ c
       if( cpu_stats .and. show_details ) then
           call mkl_get_version_string( mkl_string )
           mkl_num_thrds = solver_threads
-          if( using_mpi ) then
-             write(out,9300) mkl_num_thrds, num_ranks, 
-     &                       mkl_string(45:50),
-     &                       mkl_string(66:73), wcputime(1)
-           else
              write(out,9400) mkl_num_thrds, mkl_string(45:50),
      &                       mkl_string(66:73), wcputime(1)
-          end if
       end if
       if( .not. allocated ( dof_eqn_map ) ) then
           allocate( dof_eqn_map(num_struct_dof) )
@@ -543,12 +462,6 @@ c
      & /,    '                failed in equation solver.',
      & /,    '                inconsistencies in data structure',
      & /,    '                job terminated' )
- 9300  format (
-     &  10x, '>> solver wall time statistics (secs):'
-     & /,15x,'number of MKL threads used      ',i10,
-     & /,15x,'number of MPI ranks:            ',i10,
-     & /,15x,'MKL version, build: ',5x,a6,1x,a8,
-     & /,15x,'starting work                 @ ',f10.2 )
  9400  format (
      &  10x, '>> solver wall time statistics (secs):'
      & /,15x,'number of MKL threads used      ',i10,
@@ -571,90 +484,17 @@ c
 
 c     ****************************************************************
 c     *                                                              *
-c     *     set up equation sparsity for distributed assembly        *
-c     *                                                              *
-c     *                       written by  : rhd                      *
-c     *                   last modified : 04/13/2015                 *
-c     *                                                              *
-c     ****************************************************************
-c
-      subroutine ds_setup_sparsity_distributed( ireturn )
-      implicit none
-c
-      integer :: ireturn  ! local to this routine
-c
-c           If we have the same sparsity pattern we can skip
-c           all of this and simply assemble the coefficients
-c
-      if( .not. allocated ( dof_eqn_map ) ) then
-          allocate( dof_eqn_map(num_struct_dof) )
-          allocate( eqn_node_map(num_struct_dof) )
-      end if
-      call dof_map( dof_eqn_map, cstmap, nonode, num_enode_dof,
-     &              eqn_node_map, neqns )
-c
-      ireturn = 1
-      if( neqns .le. 0 ) return
-c
-      if( neqns .ne. old_neqns ) new_size = .true.
-      old_neqns = neqns
-      deallocate(dof_eqn_map)
-      deallocate(eqn_node_map)
-c
-      ireturn = 2
-      if( .not. new_size ) return
-c
-c           Determine the sparsity structure of your blocks of elements
-c
-      call wmpi_alert_slaves( 41 )
-      call determine_local_sparsity
-c
-c           Determine the initial map for assembling the sparse
-c           structure this should just be a simple heuristic to keep
-c           a good amount of locality
-c
-      call wmpi_alert_slaves( 42 )
-      call determine_initial_map
-c
-c           Assemble the sparse structure for the above map, now we know
-c           global nnz and full sparsity.  We can make a parmetis graph
-c           to balance.
-c
-      call wmpi_alert_slaves( 43 )
-      call assemble_sparsity
-c
-c           Determine a better mapping for load balance, pass rows as
-c           necessary and make a note of the new equation numbers
-c
-      call wmpi_alert_slaves( 44 )
-      call determine_ordering
-c
-c           Move the nnz structure around to match the final map
-c
-      call wmpi_alert_slaves( 45 )
-      call move_sparsity
-c
-c           all done
-c
-      ireturn = 3
-c
-      return
-c
-      end subroutine ds_setup_sparsity_distributed
-
-c     ****************************************************************
-c     *                                                              *
 c     *                        ds_root_assembly                      *
 c     *                                                              *
 c     *                       written by  : rhd                      *
-c     *                   last modified : 09/14/2015                 *
+c     *                   last modified : 11/7/25 rhd                *
 c     *                                                              *
 c     ****************************************************************
 c
       subroutine ds_root_assembly
       implicit none
 c
-      logical :: hypre_solver, rebuild_mpcs
+      logical :: rebuild_mpcs
       double precision :: px, py, pz
 c
 c              1. sparsity of equilibrium equations already defined on
@@ -695,11 +535,8 @@ c                       k_coeffs(ncoeff)
 c                       p_vec(neqns)
 c                  u_vec(neqns)
 c
-c                 The hypre solver needs a non-symmetric CSR
-c                 format matrix.  The hypre functions take care of
-c                 conversion, but we need to overallocate the
-c                 arrays in order to fit all the
-c                 data.  Note for non-symmetric CSR we need:
+c                 For asymmetric assembly/solve we need  CSR
+c                 format matrix. For non-symmetric CSR we need:
 c
 c                       k_ptrs(neqns+1)
 c                       k_indexes(2*ncoeff+neqns)
@@ -707,12 +544,11 @@ c                       k_coeffs(2*ncoeff+neqns)
 c                       p_vec(neqns)
 c                       u_vec(neqns)
 c
-c                 k_diag is not used in the CSR format, but we'll
+c                 k_diag is not used in the CSR format, but we
 c                 need it for assembly.
 c
-      hypre_solver =  solver_flag .eq. 9
       call thyme( 18, 1 )
-      if( hypre_solver .or. asymmetric_assembly  ) then
+      if(  asymmetric_assembly  ) then
             allocate( k_ptrs(neqns + 1 ),
      &                k_indexes(2*ncoeff + neqns),
      &                k_coeffs(2*ncoeff + neqns) )
@@ -814,7 +650,7 @@ c                 Thats why we save the "assembled" profile count
 c                 in step 3 of the process above to construct the
 c                 equation sparsity.
 c
-c                 We also need to recreate MPCs if they've
+c                 We also need to recreate MPCs if they have
 c                 been modified! Added a flag for this case
 c
 c                 ==>> MPCs/tied cons are supported only for symmetric
@@ -927,145 +763,8 @@ c
      &  15x, 'upper triangle to full done   @ ',f10.2)
 c
       end subroutine ds_root_assembly
-
-c     ****************************************************************
-c     *                                                              *
-c     *                     ds_distributed_assembly                  *
-c     *                                                              *
-c     *                       written by  : rhd                      *
-c     *                   last modified : 04/14/2015                 *
-c     *                                                              *
-c     ****************************************************************
-c
-      subroutine ds_distributed_assembly
-      implicit none
-c
-c
-c           The idea here is to move the sparsity to the correct processors
-c           and then assemble the actual data.
-c           The first part (the sparsity) would be done above and would save
-c           memory, but because we might spawn processors must be done here.
-c           Move the nnz structure around to match the final map
-c
-      call wmpi_alert_slaves( 46 )
-      call assemble_coefs( new_size )
-c
-c           and get and distribute the load vector
-c
-      call wmpi_alert_slaves( 47 )
-      call assem_load_vec
-      call wmpi_alert_slaves( 48 )
-      call dist_final_setup
-c
-c           We need to allocate the solution vector on root
-c
-      neqns = curr_neqns()   !   a function in mpi code
-      allocate( u_vec(neqns) )
-c
-c           It turns out that we need this
-c
-      if( .not. allocated ( dof_eqn_map ) ) then
-          allocate( dof_eqn_map(num_struct_dof) )
-          allocate( eqn_node_map(num_struct_dof) )
-      end if
-      call dof_map( dof_eqn_map, cstmap, nonode, num_enode_dof,
-     &              eqn_node_map, neqns )
-c
-      return
-c
-c           Checksum matches.  We have the right distributed equations
-c
-      end subroutine ds_distributed_assembly
-
-
-c     ****************************************************************
-c     *                                                              *
-c     *                     ds_drive_hypre                           *
-c     *                                                              *
-c     *                       written by  : rhd                      *
-c     *                   last modified : 04/14/2015                 *
-c     *                                                              *
-c     ****************************************************************
-c
-      subroutine ds_drive_hypre
-      implicit none
-
-       if( asymmetric_assembly ) then
-          write(out,*) "Note to Mark.  This should work, but check"
-        end if
-c
-        call wmpi_alert_slaves( 40 )
-c
-c           run the hyper solver on MPI ranks
-c
-        call iterative_sparse_hypre( u_vec, out, error_code )
-c
-c           The returned error_code means one of two things:
-c
-c           1. we've run into the condition "hypre can't solve the
-c              increment before an adaptive reset is necessary", or
-c
-c           2. "these equations are too ill-conditioned for hypre
-c              to solve."
-c
-c           If the adaptive Newton solution flag is not set
-c           assume (2) and just exit.
-c
-c           Else hypre will keep count of how many adaptive
-c           calls in a row it has triggered.  If this is the
-c           first hypre-triggered adaptive step, then deallocate
-c           the structs and return to mnalgr, requesting a usual Newton
-c           adaptive sub-step.  If this is the second (-in a row-),
-c           then quit out, as we're likely not going to recover.
-c
-      if( error_code .eq. 1 ) then
-         if( adaptive_flag ) then
-           if( precond_fail_count .ge. 2 ) then
-              write(out,9600)
-              write(out,9602)
-              call die_gracefully
-           else
-              if( local_debug ) write (out,*) '... @ 8.1'
-              write(out,9605)
-              hyp_trigger_step = .true.
-              if( .not. (parallel_assembly_used) ) then
-                deallocate( k_diag )
-                deallocate( k_coeffs )
-                deallocate( k_ptrs )
-                deallocate( k_indexes )
-                deallocate( p_vec )
-              end if
-              deallocate( u_vec )
-              return
-           end if
-         else ! user does not allow adaptive Newton.
-               write(out,9607)
-               write(out,9602)
-               call die_gracefully
-         end if
-      end if
-c
-c           this means we solved the equations and do not need an
-c           adaptive call, so set the flag accordingly.
-c
-      hyp_trigger_step = .false.
-c
-      return
-c
- 9600 format('>> ERROR: hypre has requested 2 adaptive steps',
-     &          ' in a row due to non-convergence.')
- 9602 format('>> Terminating analysis at this point',//)
- 9605 format('>> Note: hypre has requested adaptive step reduction'/)
- 9607 format('>> ERROR: hypre failed to converge. Try adjusting load',
-     &  /    '          step size on hypre parameters.'//)
-c
-      end subroutine ds_drive_hypre
-
+c      
       end subroutine drive_assemble_solve
-
-
-
-
 c ------------------------------------------------------------------------
 c                        NASA - VSS
 c
@@ -1106,7 +805,7 @@ c     *           stream, unformatted file or a formatted file       *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 02/15/2014                 *
+c     *                   last modified : 11/7/25 rhd                *
 c     *                                                              *
 c     ****************************************************************
 c
@@ -1116,26 +815,24 @@ c
      &    sparse_stiff_binary, sparse_stiff_file_name, iout )
 c
       implicit none
-      integer  neqns, ncoeff, k_ptrs(*), k_indexes(*), dstmap(*),
-     &         dof_eqn_map(*), eqn_node_map(*), num_struct_dof, nonode
-      double precision
-     &  k_diag(*), p_vec(*), k_coeffs(*)
-      logical sparse_stiff_output, sparse_stiff_binary, connected
+      integer ::  neqns, ncoeff, k_ptrs(*), k_indexes(*), dstmap(*),
+     &       dof_eqn_map(*), eqn_node_map(*), num_struct_dof, nonode
+      double precision :: k_diag(*), p_vec(*), k_coeffs(*)
+      logical :: sparse_stiff_output, sparse_stiff_binary, connected
       character(len=*) :: sparse_stiff_file_name
-      integer fileno, open_result, iout, i
+      integer :: fileno, open_result, iout, i
+      integer, external :: warp3d_get_device_number      
 c
       sparse_stiff_output = .false.
 c
-c                  find an available unit number to use
+c          Find a file number
 c
-      do fileno = 11, 99
-        inquire(unit=fileno, opened=  connected )
-        if ( .not. connected ) go to 100
-      end do
-      write(iout,9000)
-      return
-c
- 100  continue
+      fileno = warp3d_get_device_number()
+      if( fileno == -1 ) then
+        write(*,*) "Couldn't find a file number to write to.."
+        call die_gracefully
+      end if  
+c 
       if ( sparse_stiff_binary ) then
         open(unit=fileno, file=sparse_stiff_file_name,
      &       status='replace', access='stream',form='unformatted',
@@ -1217,7 +914,7 @@ c     *                      subroutine store_solver                 *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 1/15/02 rhd                *
+c     *                   last modified : 11/7/25 rhd                *
 c     *                                                              *
 c     *     write a binary file of key structure data after assembly *
 c     *     and before solve by sparse solver. this file is used to  *
@@ -1226,27 +923,42 @@ c     *                                                              *
 c     ****************************************************************
 c
 c
-c
       subroutine store_solver( do_binary, file_name, neqns,
      &                         num_struct_dof, dof_eqn_map,
      &                         eqn_node_map )
-      use global_data ! old common.main
-      use main_data
-      implicit integer (a-z)
-      intrinsic size
-      logical do_binary
+c      
+      use global_data,only :  out, noelem, nonode, nodof, csthed, 
+     &                        inctop, nelblk, dstmap, iprops, cstmap, 
+     &                        elblks, cp, mxedof, mxutsz, icp, dcp
+      use main_data, only : invdst, incid, cnstrn, incmap
+      use constants, only : rzero
+c      
+      implicit none
+c 
+      logical :: do_binary
       character(len=*) :: file_name
-      dimension dof_eqn_map(*), eqn_node_map(*)
+      integer :: neqns, num_struct_dof, dof_eqn_map(*), 
+     &           eqn_node_map(*)
+c 
+c              local variable declarations
 c
-c               parameter and local variable declarations
-c
-      allocatable ele_info(:)
-      real dumr, rzero
-      double precision
-     &     dumd
+      integer :: prec_fact, open_result, i, fileno
+      integer, allocatable ::  ele_info(:)
+      integer, intrinsic :: size
+      integer, external :: warp3d_get_device_number
+      real :: dumr
+      double precision :: dumd
       character(len=1) :: dums
-      data check_data_key, rzero / 2147483647, 0.0 /
+      integer, parameter :: check_data_key = 2147483647
+c 
+c          Find a file number
 c
+      fileno = warp3d_get_device_number()
+      if( fileno == -1 ) then
+        write(*,*) "Couldn't find a file number to write to.."
+        call die_gracefully
+      end if  
+
       if ( .not. do_binary ) then
          write(out,*) '>>> WARNING: solver research data cannot'
          write(out,*) '             be written to an ascii file'
@@ -1255,8 +967,7 @@ c
       end if
 c
       prec_fact = 2
-      fileno = 11
-        open(unit=fileno, file=file_name,
+      open(unit=fileno, file=file_name,
      &       status='old', access='sequential', form='unformatted',
      &       iostat=open_result, position='append'  )
       if ( open_result .ne. 0 ) then
@@ -1347,7 +1058,7 @@ c     *                 subroutine store_solver_2                    *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 01/15/02                   *
+c     *                   last modified : 11/7/25 rhd                *
 c     *                                                              *
 c     *     write data into restart file for the requested data      *
 c     *     structures which additional complexity                   *
@@ -1355,12 +1066,14 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine store_solver2( fileno )
-      use global_data ! old common.main
-c
+c             
+      use global_data, only : nonode, out
       use main_data, only : inverse_incidences, inverse_dof_map
 c
-      implicit integer (a-z)
-      data check_data_key / 2147483647 /
+      implicit none 
+      integer :: fileno 
+      integer :: stnd, ecount, i, j
+      integer, parameter :: check_data_key = 2147483647
 c
       write(fileno) ( inverse_incidences(stnd)%element_count, stnd = 1,
      &                nonode )
@@ -1381,6 +1094,7 @@ c
       return
  9000 format(17x,'> inverse_incidences written...')
  9100 format(17x,'> inverse_dof_maps written...')
+c
       end
 c     ****************************************************************
 c     *                                                              *
@@ -1388,7 +1102,7 @@ c     *                 subroutine store_solver_3                    *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 01/15/02                   *
+c     *                   last modified : 11/7/25 rhd                *
 c     *                                                              *
 c     *     write data into restart file for the requested data      *
 c     *     structures which additional complexity                   *
@@ -1396,12 +1110,15 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine store_solver3( fileno )
-      use global_data ! old common.main
-c
+c             
+      use global_data, only : nelblk, elblks, iprops
       use elem_block_data, only : edest_blocks, estiff_blocks
 c
-      implicit integer (a-z)
-      data check_data_key / 2147483647 /
+      implicit none
+c
+      integer :: fileno
+      integer, parameter :: check_data_key = 2147483647
+      integer :: blk, felem, span, nnode, num_enode_dof, totdof
 c
       do blk = 1, nelblk
         felem         = elblks(1,blk)
@@ -1416,15 +1133,13 @@ c
       end do
       return
       end
-
-
 c     ****************************************************************
 c     *                                                              *
 c     *                 subroutine store_csr_formatted               *
 c     *                                                              *
 c     *                       written by : mcm                       *
 c     *                                                              *
-c     *                   last modified : 12/18/2016                 *
+c     *                   last modified : 11/7/25 rhd                *
 c     *                                                              *
 c     *     write assembled equations IN CSR in the following format:*
 c     *     n, nnz  (2I8)                                            *
@@ -1436,27 +1151,26 @@ c     ****************************************************************
 c
       subroutine store_csr_formatted( filename, n, nnz, row_ptrs,
      &                        col_indexes, values, rhs, diagonal )
+c
       implicit none
-
+c 
       integer :: n, nnz, row_ptrs(*), col_indexes(*)
       double precision ::  diagonal(*), rhs(*), values(*)
       character(len=*) :: filename
 
       integer :: i, fileno
+      integer, external :: warp3d_get_device_number
       logical :: connected
 c
 c          Find a file number
 c
-      do fileno = 11, 99
-        inquire(unit=fileno, opened=connected )
-        if ( .not. connected ) go to 100
-      end do
-      write(*,*) "Couldn't find a file number to write to, skipping"
-      return
-c
- 100  continue
-c
-c           Basically the plan is to convert to CSR (with existing fn)
+      fileno = warp3d_get_device_number()
+      if( fileno == -1 ) then
+        write(*,*) "Couldn't find a file number to write to.."
+        call die_gracefully
+      end if  
+c      
+c           plan is to convert to CSR (with existing fn)
 c           and write out in
 c           the format specified above.
 c
@@ -1491,7 +1205,7 @@ c     *                 subroutine convert_vss_csr                   *
 c     *                                                              *
 c     *                       written by : mcm                       *
 c     *                                                              *
-c     *                   last modified : 12/10/13                   *
+c     *                   last modified : 11/7/25 rhd                *
 c     *                                                              *
 c     *     Convert the upper triangle vss sparsity pattern to       *
 c     *     a full CSR format.                                       *
@@ -1506,8 +1220,10 @@ c
      &                        vss_indexes(neqns+ncoeff)
       integer, intent(out) :: nnz, ptrs(neqns+1),
      &                        indexes(2*ncoeff+neqns)
-      integer :: i, j, s, o, k, c, r, work(neqns)
+      integer :: i, j, s, o, k, c, r
+      integer, allocatable :: work(:)
 c
+      allocate( work(neqns) )
       nnz = neqns + 2*ncoeff
 c
 c           Copy the number of terms per row
@@ -1569,7 +1285,7 @@ c
         s = j
       end do
 c
-c     All done algorithm is O(nnz), don't think we can do better
+c     All done algorithm is O(nnz), do not think we can do better
 c
       return
       end
