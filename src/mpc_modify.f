@@ -7,7 +7,7 @@ c     *          or resulting from the tied-contact processor        *
 c     *                                                              *          
 c     *                                                              *          
 c     *                       written by  : bjb                      *          
-c     *                      last modifed : 2/19/2016 rhd            *          
+c     *                      last modifed : 12/5/2025 rhd            *          
 c     *                                                              *          
 c     * edit: add optional checks for uninitialized variables in     *          
 c     * k_coeffs (through its various resizings)                     *          
@@ -20,19 +20,19 @@ c
       use mod_mpc, only : nmpc, num_tied_con_mpc, num_user_mpc                  
       implicit integer (a-z)                                                    
       integer, allocatable, dimension(:) :: abs_ptr, abs_trm                    
-      real  dumr                                                                
-      double precision  dumd                                                    
-      double precision                                                          
-     &          k_diag                                                          
+      real ::  dumr                                                                
+      double precision :: dumd                                                    
+      double precision :: k_diag                                                          
       character(len=1) :: dums                                                  
       dimension  k_ptrs(*), k_diag(*), dstmap(*), dof_eqn_map(*)                
-      logical ldebug                                                            
-      data ldebug / .false. /                                                   
+      logical, parameter :: ldebug = .false.                                                            
 c                                                                               
 c        allocate local variables                                               
 c                                                                               
       if( ldebug ) write(*,*) '...@ 1 mpc_insert_terms ...'                     
-      nmpc = num_tied_con_mpc + num_user_mpc                                    
+      nmpc = num_tied_con_mpc + num_user_mpc 
+      if( ldebug ) write(*,9100) neqns, num_tied_con_mpc, num_user_mpc,
+     &                        nmpc                                   
       allocate ( abs_ptr(neqns),                                                
      &           abs_trm(nmpc),                                                 
      &           stat=err)                                                      
@@ -48,7 +48,8 @@ c
       call mpc_new_structures(neqns, max_dep, abs_trm, dstmap,                  
      &                        dof_eqn_map)                                      
       call mpc_chk_nan( 11 )                                                    
-      if( ldebug ) write(*,*) '...@ 3 mpc_insert_terms ...'                     
+      if( ldebug ) write(*,*) '...@ 3 mpc_insert_terms ...' 
+      if( ldebug ) write(*,9110) max_dep                    
 c                                                                               
 c        2. Find and re-organize the full dependent equations and               
 c              all the new non-zero terms to be added to [K]                    
@@ -74,7 +75,13 @@ c
       deallocate (abs_ptr,abs_trm)                                              
       if( ldebug ) write(*,*) '... leaving mpc_insert_terms ...'                
 c                                                                               
-      return                                                                    
+      return 
+ 9100 format(5x,'... neqns:               ', i7,
+     & /,    5x,'... num_tied_con_mpc:    ', i7, 
+     & /,    5x,'... num_user_mpc:        ', i7, 
+     & /,    5x,'... nmpc:                ', i7)
+ 9110 format(5x,'... max_dep              ', i7)
+                                                                            
       end                                                                       
 c                                                                               
 c     ****************************************************************          
@@ -84,7 +91,7 @@ c     *   useful for debugging                                       *
 c     *                                                              *          
 c     *                       written by  : bjb                      *          
 c     *                                                              *          
-c     *                   last modified : 01/19/04                   *          
+c     *                   last modified : 12/5/2025 rhd              *          
 c     *                                                              *          
 c     ****************************************************************          
 c                                                                               
@@ -92,9 +99,10 @@ c
       use stiffness_data, only : k_coeffs, dep_locations, ncoeff,               
      &                           ind_locations, diag_locations                  
       implicit none                                                             
-      integer :: i, iwhere                                                      
-c                                                                               
-      return                                                                    
+      integer :: i, iwhere       
+      logical, parameter :: run_check = .false.                                               
+c     
+      if( .not. run_check ) return                                                                          
       write(*,*) '... checking NaN @ ', iwhere                                  
       do i = 1, size(k_coeffs)                                                  
         if( .not. isnan( k_coeffs(i) ) ) cycle                                  
@@ -103,7 +111,6 @@ c
       end do                                                                    
       return                                                                    
       end                                                                       
-                                                                                
 c                                                                               
 c                                                                               
 c     ****************************************************************          
@@ -115,7 +122,7 @@ c     *                                                              *
 c     *                                                              *          
 c     *                       written by  : bjb                      *          
 c     *                                                              *          
-c     *                   last modified : 11/12/2016 rhd             *          
+c     *                   last modified : 12/5/2025 rhd              *          
 c     *                                                              *          
 c     ****************************************************************          
 c                                                                               
@@ -359,6 +366,7 @@ c
          call errmsg2(48,dumi,dums,dumr,dumd)                                   
          call die_abort                                                         
       end if                                                                    
+      if( local_debug ) write(*,*) '   @ 3.'                     
 c                                                                               
 c        size new data structures for eqns to include new non-zero terms        
 c        an initial guess is made for the size of these new structures,         
@@ -378,6 +386,7 @@ c
             call die_abort                                                      
          end if                                                                 
       end do                                                                    
+      if( local_debug ) write(*,*) '   @ 4.'                     
 c                                                                               
 c        find and store the entire dep eqn and new terms                        
 c                                                                               
@@ -419,11 +428,21 @@ c
                   end do                                                        
                end if                                                           
             end do                                                              
-            dlen = dep_ptr(row)                                                 
+            dlen = dep_ptr(row)   
+            if( local_debug ) then
+               write(*,9120) dlen, row
+               do idebug = 1, dlen
+                  write(*,9125) idebug, eqn_row(row)%loc_list(idebug)
+               end do
+            end if  
             call mpc_heapsort(dlen, eqn_row(row)%loc_list )                  
-            if (dlen .gt. max_len)  max_len = dlen                              
+            if (dlen .gt. max_len)  max_len = dlen     
+            if( local_debug ) then
+               write(*,9100) dlen, row
+            end if                        
             do dptr = 1, dlen                                                   
-               eqn = eqn_row(row)%loc_list(dptr)                                
+               eqn = eqn_row(row)%loc_list(dptr)   
+               if( local_debug ) write(*,9110 )  dptr, eqn                            
                if (eqn .eq. row)  dep_ptr(row) = dptr                           
                do trm = 1, tmp_ptr                                              
                   ind = tmp_trms(trm)                                           
@@ -503,7 +522,11 @@ c
  9005 format(2x,8i10)                                                           
  9010 format(2x,8(i5,d14.6))                                                    
  9020 format(10x,'eqn #, size: ',2i8)                                           
- 9025 format(15x,10i6)                                                          
+ 9025 format(15x,10i6)
+ 9100 format(5x,'... dlen, row:',2i7,' start dptr loop')                                                          
+ 9110 format(5x,'... dptr, eqn:',2i7) 
+ 9120 format(5x,'... dlen, row:',2i7)                                                        
+ 9125 format(5x,'... idebug, eqn:',2i7)                                                       
       end                                                                       
 c                                                                               
 c                                                                               
