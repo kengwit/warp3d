@@ -4,7 +4,7 @@ c     *                      subroutine mnralg                       *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified: 9/12/22   rhd               *
+c     *                   last modified: 11/6/2025 rhd               *
 c     *                                                              *
 c     *     supervises advancing the solution from                   *
 c     *     step n to n+1 using a newton iteration process.          *
@@ -18,7 +18,17 @@ c     ****************************************************************
 c
 c
       subroutine mnralg( mf, mf_nm1, mf_ratio_change, step, ldnum )
-      use global_data ! old common.main
+c           
+      use global_data, only : du, nodof, idu, out, u, solver_flag,
+     &                        total_mass, adaptive_flag, temperatures,
+     &                        last_node_released, node_causing_stop,
+     &                        show_details, dt, scaling_adapt,
+     &                        scaling_factor, cstmap, douextdb, 
+     &                        msg_count_1, msg_count_2, newstf, a, v, 
+     &                        nbeta, ifv, res, load, dstmap,
+     &                        mniter, halt, total_model_time,
+     &                        ltmstp, lsldnm, lodnam, num_term_loads,
+     &                        sum_loads, mxiter, zrocon
 c
       use main_data, only : mdiag, pbar, cnstrn, dload,
      &     divergence_check, asymmetric_assembly,
@@ -28,16 +38,12 @@ c
      &     ls_slack_tol, last_step_num_iters, last_step_adapted
       use adaptive_steps, only : adapt_result, adapt_disp_fact,
      &                           adapt_load_fact
-      use hypre_parameters, only : hyp_trigger_step
-      use distributed_stiffness_data, only: parallel_assembly_used,
-     &                               distributed_stiffness_used,
-     &                               parallel_assembly_allowed
       use performance_data
       use mod_mpc, only: mpcs_exist, tied_con_mpcs_constructed
       use stiffness_data, only :  total_lagrange_forces,
      &                            d_lagrange_forces,
      &                            i_lagrange_forces 
-      use constants
+      use constants, only : one, zero
 c
       implicit none
 c
@@ -57,10 +63,10 @@ c
      & ls_request_adaptive, ldummy1, ldummy2,
      & diverging_flag, user_extrapolation_on, user_extrapolation_off,
      & setup_lagrange_data
-c
+c     
       character (len=1) :: dums
       logical :: local_debug, first_solve, first_subinc,
-     &        hypre_solver, cnverg, adaptive, local_mf_ratio_change,
+     &        cnverg, adaptive, local_mf_ratio_change,
      &        check_crk_growth
 c
       type :: info_mnralg
@@ -118,7 +124,6 @@ c
       user_extrapolation_on = extrapolate ! better name for local use
       user_extrapolation_off = .not. extrapolate ! convenience
       emit_extrap_msg = .true.
-      hypre_solver = solver_flag .eq. 9
       local_mf_ratio_change = mf_ratio_change
 c
 c          initialize adaptive solution stack for the load step. we try
@@ -160,12 +165,6 @@ c
 c
 c           initialize data structures which handle the temperature
 c           loadings in the case of adaptive step reduction.
-c
-c           for MPI::
-c               send workers temperature information
-c               and element equiv. nodal loads for this step.
-c
-      call wmpi_send_temp_eqloads
 c
 c           save user-defined temperature increments for nodes and
 c           (uniform) element increments in local save vectors
@@ -317,17 +316,8 @@ c
      &                        adapt_disp_fact, dt
       end if
 c
-c          MPI solution::
-c            send worker processes information needed before the first
-c            Newton iteration. Workers inform root the stress-strain
-c            values it has for elements it does not own that
-c            are no longer valid.
-c
 c          run uexternaldb for Abaqus support
 c
-      call wmpi_send_step
-      call wmpi_send_itern
-      call wmpi_get_str ( 1 )
       douextdb = 3  ! in common.main. tells uexternal what to do
       call wmpi_do_uexternaldb
 c
@@ -355,8 +345,7 @@ c
       material_cut_step = .false.
       msg_count_1 = 0
       msg_count_2 = 0
-      call drive_eps_sig_internal_forces( step, 0,
-     &          material_cut_step )
+      call drive_eps_sig_internal_forces( step, 0, material_cut_step )
 c
 c          element stiffness matrices. (stifup gets only new element
 c          stiffnesss - not a structure stiff).
@@ -438,58 +427,14 @@ c
       if( iter .gt. 1 ) ! start of step done above
      &         call stifup( step, iter, out, newstf, show_details )
 c
-c          if we're using hypre solver, we need to distribute the
-c          stiffness to MPI ranks (that's the second flag).
-c          Gets set below either way, but all
-c          parallel assembly must be distributed
-c          some features used in the model may disable
-c          distributed assembly in MPI.
-c
-c          MPCs/tied contact  -> no hypre, symmetric only
-c          hypre -> only with MPI. ok without parallel
-c                   assembly. equations assembled on root
-c                   then distributed to ranks.
-c
-      parallel_assembly_used = .false.
-      if( .not. (mpcs_exist .or. tied_con_mpcs_constructed)
-     &     .and. hypre_solver .and. parallel_assembly_allowed ) then
-            parallel_assembly_used = .true.
-            distributed_stiffness_used = .true.
-      end if
-c
-c          we can use hypre (MPI) w/o distributed assembly.
-c
-      distributed_stiffness_used = .false.
-      if( hypre_solver ) distributed_stiffness_used = .true.
-c
       if( dynamic ) call inclmass
 c
-c           Do some check s for things we haven't implemented yet
-c
-      if( asymmetric_assembly .and. parallel_assembly_used ) then
-            write(out,9720); write(out,9718)
-            call die_gracefully
-      end if
+c           Do some checks for things we haven't implemented yet
 c
       if( asymmetric_assembly .and. (mpcs_exist .or.
      &      tied_con_mpcs_constructed) ) then
             write(out,9715); write(out,9718)
             call die_gracefully
-      end if
-c
-c          MPI:
-c            default is to gather all of the element stiffnesses back
-c            to the root processor so that we can conduct assembly of
-c            model stiffness matrix.
-c
-c            with hypre solver and under right conditions (see above)
-c            we can use the faster, less memory or root distributed
-c            assembly.
-c
-      if( .not. parallel_assembly_used ) then
-            call t_start_assembly( start_assembly_step )
-            call wmpi_combine_stf
-            call t_end_assembly( assembly_total, start_assembly_step )
       end if
 c
 c          solve the linearized equations to compute the displacement
@@ -498,25 +443,10 @@ c          for the load step (du).
 c
 c          Enforce MPCs when:
 c              - symmetric MKL solvers (direct/iterative)
-c              - no MPI
 c
       call eqn_solve( iter, step, first_solve,
-     &                nodof, solver_flag, use_mpi, show_details,
+     &                nodof, solver_flag, show_details,
      &                du, idu, iout )
-c
-c          This applies only to hypre:  If we return from the solver
-c          and hypre has indicated that it needs an adaptive step
-c          (recall issue with solution of iterations immediately
-c          preceding an adaptive call) then get the next scaling
-c          factor, call for a reset and return to the start
-c          of the step.
-c
-      if( hyp_trigger_step ) then
-               call adapt_check( scaling_adapt, 1, step, out )
-               call adaptive_reset
-               first_subinc = .true.
-               go to 1000
-      end if
 c
 c          run strain-stress-internal force update. include line
 c          search in this process if option in on.
@@ -606,18 +536,10 @@ c
 c
 c          uexternaldb for Abaqus compatible support
 c
-      douextdb = 4  ! common.main. tells uexternaldb what to do
+      douextdb = 4  ! mod_global
       call wmpi_do_uexternaldb
 c
       if( adaptive ) dt = dt_original
-c
-c          MPI:
-c            if we are using crack growth, then the slave processors
-c            must send to the root processor the pertinent element
-c            information for killable elements so that root can
-c            assess the current growth criterion.
-c
-      call wmpi_get_grow
 c
 c          output convergence status.
 c
@@ -746,7 +668,7 @@ c     *                     subroutine mnralg_ls                     *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 12/3/2015 rhd              *
+c     *                   last modified : 11/6/2025 rhd              *
 c     *                                                              *
 c     *    run line search for this global Newton iteration if       *
 c     *    user requested . instrumented version to gather behavior  *
@@ -756,20 +678,21 @@ c     ****************************************************************
 c
 c
       subroutine mnralg_ls
+c
+      use constants, only : zero, one            
       implicit none
 c
 c              local variables
 c
       double precision ::
      &      s_value, s0_value, r_value, alpha, rho, slack_toler,
-     &      alpha_min, s_values(0:30), r_values(0:30), zero, one,
+     &      alpha_min, s_values(0:30), r_values(0:30),
      &      ls_reduce_fraction, alpha_values(30)
       double precision, allocatable :: du0(:)
 
       logical :: ls_debug, no_line_search, line_search_details
       integer :: ls_ell
       character(len=1) :: ls_flag
-      data zero, one / 0.0d00, 1.0d00 /
 c
       if( show_details ) write(iout,9210) step, iter
 c
@@ -918,7 +841,7 @@ c     *              subroutine mnralg_ls_instrumented               *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 12/3/2015 rhd              *
+c     *                   last modified : 11/6/2025 rhd              *
 c     *                                                              *
 c     *    run line search for this global Newton iteration if       *
 c     *    user requested . instrumented version to gather behavior  *
@@ -928,20 +851,21 @@ c     ****************************************************************
 c
 c
       subroutine mnralg_ls_instrumented
+c
+      use constants, only : zero, one           
       implicit none
 c
 c              local variables
 c
       double precision ::
      &      s_value, s0_value, r_value, alpha, rho, slack_toler,
-     &      alpha_min, s_values(0:30), r_values(0:30), zero, one,
+     &      alpha_min, s_values(0:30), r_values(0:30),
      &      ls_reduce_fraction, alpha_values(30)
       double precision, allocatable :: du0(:)
 
       logical :: ls_debug, no_line_search, line_search_details
       integer :: ls_ell, curve_type, bug
       character(len=1) :: ls_flag
-      data zero, one / 0.0d00, 1.0d00 /
 c
       if( show_details ) write(iout,9210) step, iter
 c
@@ -1043,15 +967,16 @@ c
       subroutine mnralg_ls_instrumented_a( npts, yvalues, xvalues,
      &                      curve_type, iout, bug )
       implicit none
-      integer npts,curve_type, i, iout, bug
+      integer :: npts,curve_type, i, iout, bug
       double precision :: yvalues(*), xvalues(*)
+c
       if( bug .eq. 1 ) then
-      write(iout,*) '<<< num points: ', npts
-      do i = 1, npts
-         write(iout,*) i, xvalues(i), yvalues(i)
-      end do
+        write(iout,*) '<<< num points: ', npts
+        do i = 1, npts
+          write(iout,*) i, xvalues(i), yvalues(i)
+        end do
       end if
-
+c
       curve_type = 1
       do i = 2, npts
         if( yvalues(i) < yvalues(i-1) ) cycle
@@ -1088,15 +1013,6 @@ c
       implicit none
 c
       du(1:nodof) = du(1:nodof) + idu(1:nodof)
-c
-c          MPI:
-c            send all the worker processors information determined from
-c            the equation solve to help them continue with the newton
-c            iterations. just du at present. drive ... supervises
-c            ranks to compute strains, stresses, new internal forces.
-c
-      call wmpi_send_itern
-c
       msg_count_1 = 0
       msg_count_2 = 0
       call drive_eps_sig_internal_forces( step, iter,
@@ -1114,16 +1030,6 @@ c
       double precision :: alpha, du0(*)
 c
       du(1:nodof) = du0(1:nodof) + alpha*idu(1:nodof)
-c
-c          MPI:
-c            send all the worker processors information determined from
-c            the equation solve to help them continue with the newton
-c            iterations. just du at present. drive ... supervises
-c            ranks to compute strains, stresses, new internal forces.
-c            iterations.
-c
-      call wmpi_send_itern
-c
       msg_count_1 = 0
       msg_count_2 = 0
       call drive_eps_sig_internal_forces( step, iter,
@@ -1158,11 +1064,6 @@ c
       end subroutine mnralg_ls_get_s
 c
       end subroutine mnralg
-
-
-
-
-
 c
 c     ****************************************************************
 c     *                                                              *
@@ -1170,7 +1071,7 @@ c     *                subroutine update_convergence_history         *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 08/15/2013                 *
+c     *                   last modified : 11/6/25 rhd                *
 c     *                                                              *
 c     * load step completed. update global convergence history       *
 c     *                                                              *
@@ -1181,9 +1082,11 @@ c
      &                                       info )
 c
       use main_data, only : convergence_history
-      implicit integer (a-z)
+      implicit none
 c
-      logical local_debug
+      integer :: step, iout
+      integer :: i, j
+      logical :: local_debug
 c
       type :: info_mnralg
         logical :: adaptive_used
@@ -1247,7 +1150,7 @@ c     *                      subroutine adaptive_save                *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 05/27/96                   *
+c     *                   last modified : 11/6/25 rhd                *
 c     *                                                              *
 c     * save key solution variables in case the analysis requires an *
 c     * adaptive restart with a smaller load step size.              *
@@ -1256,22 +1159,16 @@ c     ****************************************************************
 c
 c
       subroutine adaptive_save
-      use global_data ! old common.main
-c
+c            
+      use global_data, only : nodof, out, du, nelblk, elblks, iprops
       use main_data, only       : du_nm1
       use elem_block_data, only : rot_n_blocks, rot_n1_blocks,
      &                            rot_blk_list
 c
-      implicit integer (a-z)
-      double precision
-     &    dummy(1)
-c
-c                      MPI:
-c                        workers run this subroutine for the
-c                        data they own.
-c
-       call wmpi_alert_slaves ( 18 )
-c
+      implicit none 
+c     
+      integer :: ngp, alloc_stat, blk, felem, span, block_size
+      double precision ::  dummy(1)
 c
 c                      we also save the current 3x3 rotation matrices
 c                      from the most recent polar decompositions as
@@ -1322,7 +1219,7 @@ c     *                      subroutine adaptive_reset               *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified :  3/4/13 rhd                *
+c     *                   last modified :  11/6/2025 rhd             *
 c     *                                                              *
 c     * the adaptive processor has decided to re-start solution for  *
 c     * the load step. reset key data arrays to those at the         *
@@ -1333,8 +1230,10 @@ c     ****************************************************************
 c
 c
       subroutine adaptive_reset
-      use global_data ! old common.main
 c
+      use global_data, only : out, du, nodof, nelblk, elblks,
+     &                        iprops, nstr, nstrs, noelem,
+     &                        nonlocal_shared_state_size
       use main_data,       only : du_nm1, nonlocal_analysis
       use elem_block_data, only : history_blocks, history1_blocks,
      &                            rot_n_blocks, rot_n1_blocks,
@@ -1344,19 +1243,14 @@ c
      &                            eps_blk_list,
      &                            urcs_blk_list, nonlocal_flags,
      &                            nonlocal_data_n, nonlocal_data_n1
-      implicit integer (a-z)
+      implicit none
 c
-c                      lcoal values
+c                      local values
 c
-      double precision
-     &    dummy(1)
-      logical chk
-c
-c                      MPI:
-c                        tell the slaves to run this subroutine for the
-c                        data they own.
-c
-      call wmpi_alert_slaves ( 19 )
+      integer :: blk, felem, span, ngp, hist_size,rot_size, eps_size,
+     &           sig_size, n, i
+      double precision ::  dummy(1)
+      logical :: chk
 c
 c                      the displacement increment for the previous
 c                      step or converged sub-increment due to
@@ -1433,7 +1327,7 @@ c     *                      subroutine abort_job                    *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 04/12/95                   *
+c     *                   last modified : 11/6/2025  rhd             *
 c     *                                                              *
 c     *     write a non-converged restart file and terminate         *
 c     *     execution                                                *
@@ -1442,8 +1336,9 @@ c     ****************************************************************
 c
 c
       subroutine abort_job
-      use global_data ! old common.main
-      implicit integer (a-z)
+      use global_data, only : out ! old common.main
+      integer :: idummy
+      real :: dummy
 c
       call iodevn( idummy, iout, dummy, 1 )
       write(out,9000)
@@ -1468,32 +1363,29 @@ c     ****************************************************************
 c
 c
       subroutine eqn_solve( iter, step, first_solve,
-     &                      nodof, solver_flag, use_mpi, show_details,
+     &                      nodof, solver_flag, show_details,
      &                      du, idu, iout )
 c
       use main_data, only : extrapolated_du
-      use hypre_parameters, only: hyp_trigger_step
-      use stiffness_data, only: d_lagrange_forces,
-     &                          i_lagrange_forces
+      use stiffness_data, only: d_lagrange_forces, i_lagrange_forces
 c
       implicit none
 c
 c          parameters
 c
       integer :: iter, step, solver_flag, iout, nodof
-      logical :: first_solve, use_mpi, show_details
+      logical :: first_solve, show_details
       double precision :: du(nodof), idu(nodof)
 c
 c          locals
 c
-      logical :: hypre, not_hypre, no_extrapolation, new_pre_cond,
-     &           cpardiso, pardiso
+      logical :: no_extrapolation, new_pre_cond, pardiso
 c
 c          solve for the change in the displacements for this iteration.
 c          use either the Pardiso threaded solver (direct or iterative)
-c          or the MPI_threads hypre solver from LLNL.
 c
-c          the EBE solver is deprecated  and removed.
+c          only the Pardiso (threaed) direct/iterative solver now
+c          supported.
 c
 c          the direct solver re-triangulates each time a solution
 c          is obtained. it also maintains data structures for assembly
@@ -1510,27 +1402,7 @@ c          due to predict flag. first_solve = .true. if we have not actually
 c          performed a triangulation yet for the load step. first_solve
 c          is just local to this routine.
 c
-      hypre      = solver_flag .eq. 9
-      pardiso    = solver_flag .eq. 7  .or.  solver_flag .eq. 8
-      cpardiso   = solver_flag .eq. 10  .or.  solver_flag .eq. 11
-      not_hypre = .not. hypre
-c
-c          MPI:
-c            1) hypre -
-c                  just solve using all mpi ranks + threads
-c                  assembly on ranks or root
-c            2) pardiso (threads only) -
-c                   we still allow MPI + usual
-c                   threaded pardiso. Workers
-c                   perform element level computations. We bring
-c                   [Ke]s back to root for assembly & solve.
-c                   MPI workers ruinning on same node with root will steal
-c                   spin-wait cycles from the solver use
-c            3) cpardiso -
-c                  just solve using all mpi ranks + threads.
-c                  element [ks]s on ranks. assembly on root.
-c                  cpardiso runs on root and workers and handles
-c                  distribution of equations to ranks.
+      pardiso    = .true.
 c
 c          drive the equation solver. Code to allow changing
 c          solver during a run has been removed.
@@ -1553,7 +1425,7 @@ c          forcing a pre-conditioner update may be beneficial.
 c
 c          the solvers may choose to ignore the hint of new_pre_cond
 c
-      if ( not_hypre .and. show_details ) write(iout,9142) step, iter
+      if ( show_details ) write(iout,9142) step, iter
       no_extrapolation = .not. extrapolated_du
       new_pre_cond = .false.
       if( iter .gt. 2 ) then
@@ -1566,12 +1438,6 @@ c
 c
       call drive_assemble_solve( first_solve, iter, new_pre_cond )
       first_solve = .false.
-c
-c          check if hypre wants an adaptive step.
-c          We can only deal with this in the main mnralg, so
-c          simply keep going up the stack.
-c
-      if( hyp_trigger_step ) return
 c
 c          update after this iteration:
 c
@@ -1591,20 +1457,19 @@ c
 c
       return
 c
- 9142 format(7x,
+ 9142 format(7x,  
      & '>> running sparse solver step, iteration:          ',i7,i3)
  9200 format(1x,'>> FATAL ERROR: Job Aborted.',
      & /,5x,'i_lagrange_forces not allocated. eqn_solve')
 c
       end
-
 c     ****************************************************************
 c     *                                                              *
 c     *               subroutine mnralg_scale_temps                  *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 3/4/13  rhd                *
+c     *                   last modified : 11/6/25 rhd                *
 c     *                                                              *
 c     *     save-scale-restore nodal and element temperature values  *
 c     *     to support adaptive solutions                            *
@@ -1613,23 +1478,17 @@ c     ****************************************************************
 c
 c
       subroutine mnralg_scale_temps ( process_type, iout )
-      use global_data ! old common.main
+c        
+      use global_data, only : nonode, noelem    
       use main_data, only : dtemp_nodes, dtemp_elems
       use adaptive_steps, only : adapt_temper_fact ! set in adapt_check
-      implicit integer (a-z)
+      use constants, only : zero
+      implicit none
 c
-      double precision :: zero, f
+      integer :: process_type, iout, alloc_stat
+      double precision :: f
       double precision, dimension (:), save, allocatable ::
-     & dtemp_nodes_step, dtemp_elems_step
-       data zero /0.0d00/
-c
-c             MPI:
-c               alert MPI slave processors that we are scaling
-c               temperatures. send the process_type.
-c
-      call wmpi_alert_slaves ( 21 )
-      call wmpi_bcast_int ( process_type )
-      call wmpi_bcast_int ( iout )
+     &          dtemp_nodes_step, dtemp_elems_step
 c
       select case ( process_type )
       case( 1 )
@@ -1719,7 +1578,7 @@ c     ****************************************************************
 c
 c
       subroutine mnralg_release_con_forces
-      use global_data ! old common.main
+      use global_data, only : out, nonode, load
       use main_data, only : release_cons_table, dload
 c
       implicit none
@@ -1807,7 +1666,7 @@ c     *                      subroutine mnralg_ouconv                *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 7/24/22   rhd              *
+c     *                   last modified : 11/6/25 rhd                *
 c     *                                                              *
 c     *     outputs convergence status of global Newton iterations   *
 c     *                                                              *
@@ -1819,7 +1678,7 @@ c
      &                   total_model_time, adapt_load_fact,
      &                   last_step_num_iters, last_step_adapted )
 c
-      use constants
+      use constants, only : one
       implicit none
 c
       integer :: itpr, lstitr, step, out, last_step_num_iters

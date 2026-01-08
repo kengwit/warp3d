@@ -4,7 +4,7 @@ c     *                      subroutine store                        *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 10/20/25 rhd               *
+c     *                   last modified : 11/672025 rhd              *
 c     *                                                              *
 c     *                  writes analysis restart file                *
 c     *                                                              *
@@ -25,13 +25,8 @@ c
       use stiffness_data, only : total_lagrange_forces
       use contact
       use damage_data
-      use hypre_parameters
       use performance_data
-      use distributed_stiffness_data, only: parallel_assembly_allowed,
-     &      parallel_assembly_used, distributed_stiffness_used,
-     &      initial_map_type, final_map_type
-      use mm10_defs, only :
-     & one_crystal_hist_size, common_hist_size
+      use mm10_defs, only : one_crystal_hist_size, common_hist_size
       use erflgs
       use j_data
 c
@@ -147,14 +142,7 @@ c
      &              num_seg_curve_sets,
      &              solver_flag, old_solver_flag, solver_memory,
      &              solver_threads, eq_node_force_len,
-     &              precond_type,
-     &              hsolver_type, precond_printlevel,
-     &              solver_printlevel, max_step_limit,
-     &              hypre_max, levels, symme, error_count,
-     &              precond_fail_count, ntimes_assembly,
-     &              initial_map_type, final_map_type,
-     &              coarsening, agg_levels, interpolation, relaxation,
-     &              sweeps, cf, cycle_type, max_levels,
+     &              ntimes_assembly,
      &              one_crystal_hist_size, common_hist_size,
      &              initial_state_step, mxnmbl, J_count_exceeded,
      &              J_cutoff_num_frnt_positions,
@@ -179,10 +167,8 @@ c
      &              solver_mkl_iterative, output_packets,
      &              temperatures_ref, fgm_node_values_defined,
      &              fgm_node_values_used,
-     &              hyp_trigger_step, hyp_first_solve,
-     &              time_assembly, parallel_assembly_allowed,
-     &              parallel_assembly_used,
-     &              distributed_stiffness_used, nonlocal_analysis,
+     &              time_assembly,
+     &              nonlocal_analysis,
      &              umat_serial, umat_used, asymmetric_assembly,
      &              extrapolate, extrap_off_next_step,
      &              divergence_check, diverge_check_strict,
@@ -205,10 +191,10 @@ c
      &              beta_fact,total_model_time,scaling_adapt,eps_bbar,
      &              overshoot_limit, control_load_fact,
      &              old_load_fact, min_load_fact, killed_ele_int_work,
-     &              killed_ele_pls_work,hypre_tol,threshold,filter,
-     &              loadbal, start_assembly_step,
-     &              assembly_total, truncation, relax_wt,
-     &              relax_outer_wt, mg_threshold, ls_min_step_length,
+     &              killed_ele_pls_work,
+     &              start_assembly_step,
+     &              assembly_total,
+     &              ls_min_step_length,
      &              ls_max_step_length, ls_rho, ls_slack_tol,
      &              J_cutoff_ratio, J_cutoff_e, J_cutoff_nu, 
      &              J_cutoff_step_1_constraint_factor,

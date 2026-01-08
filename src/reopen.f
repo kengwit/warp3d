@@ -4,7 +4,7 @@ c     *                      subroutine reopen                       *
 c     *                                                              *
 c     *                      written by : bh                         *
 c     *                                                              *
-c     *                   last modified : 10/20/25 rhd               *
+c     *                   last modified : 11/7/2025 rhd              *
 c     *                                                              *
 c     *          read restart file. get solution start up            *
 c     *                                                              *
@@ -24,14 +24,9 @@ c
      &                    tied_con_mpc_table
       use stiffness_data, only : total_lagrange_forces
       use contact
-      use damage_data
-      use hypre_parameters
+      use damage_data 
       use performance_data
-      use distributed_stiffness_data, only: parallel_assembly_allowed,
-     &      parallel_assembly_used, distributed_stiffness_used,
-     &      initial_map_type, final_map_type
-      use mm10_defs, only :
-     & one_crystal_hist_size, common_hist_size
+      use mm10_defs, only : one_crystal_hist_size, common_hist_size
       use erflgs
       use j_data
       use elem_extinct_data, only : smcs_weighted_T,
@@ -137,14 +132,7 @@ c
      &              num_seg_curve_sets,
      &              solver_flag, old_solver_flag, solver_memory,
      &              solver_threads, eq_node_force_len,
-     &              precond_type,
-     &              hsolver_type, precond_printlevel,
-     &              solver_printlevel, max_step_limit,
-     &              hypre_max, levels, symme, error_count,
-     &              precond_fail_count, ntimes_assembly,
-     &              initial_map_type, final_map_type,
-     &              coarsening, agg_levels, interpolation, relaxation,
-     &              sweeps, cf, cycle_type, max_levels,
+     &              ntimes_assembly,
      &              one_crystal_hist_size, common_hist_size,
      &              initial_state_step, mxnmbl, J_count_exceeded,
      &              J_cutoff_num_frnt_positions,
@@ -159,30 +147,28 @@ c                       variables.
 c
 c
       read(fileno) halt,
-     &             linmas,ifvcmp,zrocon,growth_k_flag,
-     &             newtrn,lsldnm,incflg,
-     &             adaptive_flag,batch_messages,
-     &             signal_flag, scalar_blocking, stname,
-     &             qbar_flag, solver_out_of_core, solver_scr_dir,
-     &             show_details, temperatures, sparse_stiff_output,
-     &             sparse_stiff_binary, sparse_research,
-     &             solver_mkl_iterative, output_packets,
-     &             temperatures_ref, fgm_node_values_defined,
-     &             fgm_node_values_used,
-     &             hyp_trigger_step, hyp_first_solve,
-     &             time_assembly, parallel_assembly_allowed,
-     &             parallel_assembly_used,
-     &             distributed_stiffness_used, nonlocal_analysis,
-     &             umat_serial, umat_used, asymmetric_assembly,
-     &             extrapolate, extrap_off_next_step,
-     &             divergence_check, diverge_check_strict,
-     &             line_search, ls_details, initial_stresses_exist,
-     &             initial_stresses_user_routine,
-     &             initial_state_option, initial_stresses_input,
-     &             cp_elems_present, J_cutoff_active, 
-     &             J_cutoff_restart_file, J_ratio_adaptive_steps,
-     &             J_compute_step_2_automatic, last_step_adapted,
-     &             J_diff_at_2_set, use_weighted, gt_list_file_flag
+     &              linmas,ifvcmp,zrocon,growth_k_flag,
+     &              newtrn,lsldnm,incflg,
+     &              adaptive_flag,batch_messages,
+     &              signal_flag, scalar_blocking, stname,
+     &              qbar_flag, solver_out_of_core, solver_scr_dir,
+     &              show_details, temperatures, sparse_stiff_output,
+     &              sparse_stiff_binary, sparse_research,
+     &              solver_mkl_iterative, output_packets,
+     &              temperatures_ref, fgm_node_values_defined,
+     &              fgm_node_values_used,
+     &              time_assembly, 
+     &              nonlocal_analysis,
+     &              umat_serial, umat_used, asymmetric_assembly,
+     &              extrapolate, extrap_off_next_step,
+     &              divergence_check, diverge_check_strict,
+     &              line_search, ls_details, initial_stresses_exist,
+     &              initial_stresses_user_routine,
+     &              initial_state_option, initial_stresses_input,
+     &              cp_elems_present, J_cutoff_active, 
+     &              J_cutoff_restart_file, J_ratio_adaptive_steps,
+     &              J_compute_step_2_automatic, last_step_adapted,
+     &              J_diff_at_2_set, use_weighted, gt_list_file_flag     
       read(fileno) sparse_stiff_file_name, packet_file_name,
      &             initial_stresses_file, gt_list_file_name
       call chk_data_key( fileno, 1, 1 )
@@ -190,21 +176,21 @@ c
 c                       read in double precision variables.
 c
       read(fileno) dt,nbeta,emax,fmax,prdmlt,total_mass,ext_work,
-     &             beta_fact,total_model_time,scaling_adapt,eps_bbar,
-     &             overshoot_limit, control_load_fact,
-     &             old_load_fact, min_load_fact, killed_ele_int_work,
-     &             killed_ele_pls_work,hypre_tol,threshold,filter,
-     &             loadbal, start_assembly_step,
-     &             assembly_total, truncation, relax_wt,
-     &             relax_outer_wt, mg_threshold, ls_min_step_length,
-     &             ls_max_step_length, ls_rho, ls_slack_tol,
-     &             J_cutoff_ratio, J_cutoff_e, J_cutoff_nu, 
-     &             J_cutoff_step_1_constraint_factor,
-     &             J_target_diff, J_limit_ratio_increase,
-     &             J_limit_ratio_decrease, J_auto_step_2_delta_K,
-     &             J_cutoff_max_value, J_max_now_step,
-     &             J_ratio_last_step, J_max_now_step, J_diff_at_2,
-     &             Kr_target_diff, Kr_min_limit 
+     &              beta_fact,total_model_time,scaling_adapt,eps_bbar,
+     &              overshoot_limit, control_load_fact,
+     &              old_load_fact, min_load_fact, killed_ele_int_work,
+     &              killed_ele_pls_work,
+     &              start_assembly_step,
+     &              assembly_total,
+     &              ls_min_step_length,
+     &              ls_max_step_length, ls_rho, ls_slack_tol,
+     &              J_cutoff_ratio, J_cutoff_e, J_cutoff_nu, 
+     &              J_cutoff_step_1_constraint_factor,
+     &              J_target_diff, J_limit_ratio_increase,
+     &              J_limit_ratio_decrease, J_auto_step_2_delta_K,
+     &              J_cutoff_max_value, J_max_now_step,
+     &              J_ratio_last_step, J_max_now_step, J_diff_at_2,
+     &              Kr_target_diff, Kr_min_limit 
       call chk_data_key( fileno, 1, 2 )
 c
 c

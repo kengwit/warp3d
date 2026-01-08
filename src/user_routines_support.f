@@ -290,19 +290,17 @@ c     *                 subroutine getnumcpus                        *
 c     *                                                              *          
 c     *                       written by : rhd                       *          
 c     *                                                              *          
-c     *                   last modified : 6/13/2017                  *          
+c     *                   last modified : 11/8/25 rhd                *          
 c     *                                                              *          
-c     *     return the number of ranks during MPI execution          *          
+c     *     return the number of ranks as  = 1 now                   *
 c     *                                                              *          
 c     ****************************************************************          
 c                                                                               
       subroutine getnumcpus( nranks )                                           
-      use global_data, only : use_mpi, numprocs
       implicit none
       integer :: nranks                                                   
 c                                                                               
       nranks = 1                                                                
-      if( use_mpi ) nranks = numprocs                                           
       return                                                                    
       end                                                                       
                                                                                 
@@ -312,20 +310,18 @@ c     *                     subroutine getrank                       *
 c     *                                                              *          
 c     *                       written by : rhd                       *          
 c     *                                                              *          
-c     *                   last modified : 6/13/2017                  *          
+c     *                   last modified : 11/8/25 rhd                *          
 c     *                                                              *          
 c     *     return the MPI rank number for this process              *          
 c     *                                                              *          
 c     ****************************************************************          
 c                                                                               
       subroutine getrank( thisrank )                                            
-      use global_data, only : use_mpi, myid
       implicit none
       integer :: thisrank                                                   
 c                                                                               
       thisrank = 0                                                              
-      if( use_mpi ) thisrank = myid                                             
-      return                                                                    
+      return                                                                          
       end                                                                       
                                                                                 
 c     ****************************************************************          
