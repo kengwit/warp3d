@@ -1,26 +1,25 @@
 #!/bin/bash
 #
-#     Makewarp.bash (7th version)
+#     Makewarp.bash (8 th version)
 #
-#     modified: September 24, 2025  RHD
+#     modified: November 4, 2025 RHD
+#               ** remove MPI support **
 #
 #     Description:
 #
 #           Bash script to interactively drive compilation of Linux and macOS
-#           versions of WARP3D.  For Windows, we print message and quit.
-#           Run in a Bash shell:  Makewarp.bash
+#           versions of WARP3D.  For Windows, we print message to use anither
+#           script and quit.
 #
-#           Mac: no user selectable options.
+#           Run this script in a Bash shell:  Makewarp.bash
+#
+#           Mac and Linux: no user selectable options.
 #                script hunts down the MKL files, checks for Intel (ifort) compiler, 
 #                and runs the makefile
 #                to build the threads (OpenMP) executable.
 #
-#           Linux: .....  For
-#           Linux can either do that (simple mode) or prompt interactively for
-#           the libraries, compiler, etc.
-#
 #           June 2024. Remove support for gfortran. Intel (ifort) 
-#                      comiler stack is available for free.
+#                      compiler stack is available for free.
 #
 #      Main program (function) at bottom of this script
 #
@@ -34,26 +33,6 @@ function select_Fortran_compiler
 {
 GFORTRAN=no
 INTEL_FORTRAN=yes
-#printf "\nSelect build compiler to use:\n"
-#PS3="Select choice: "
-#select opt in 'gfortran' 'Intel Fortran' 'Exit'
-#do
-#      case $REPLY in
-#            1 )   printf "\n"
-#                  GFORTRAN=yes
-#                  INTEL_FORTRAN=no
-#                  break
-#                  ;;
-#            2 )   printf "\n"
-#                  GFORTRAN=no
-#                  INTEL_FORTRAN=yes
-#                  break
-#                  ;;
-#            3 )   exit 0
-#                  ;;
-#      esac
-#done
-#
 return
 }
 
@@ -104,103 +83,10 @@ return
 }
 # ****************************************************************************
 #
-#   Function: Install MPI code
-#
-# ****************************************************************************
-
-function install_mpi
-{
-
-#    Check to see if MPI code is installed.  If not,
-#    copy true MPI versions of MPI code to current
-#    directory for parallel execution using MPI.
-
-     mpi_match1=`cmp ./mpi_code.f $mpi_dir/mpi_code_real.f | wc -l`
-     mpi_match2=`cmp ./mpi_handle_slaves.f $mpi_dir/mpi_handle_slaves_real.f | wc -l`    
-#     
-     if [ ! $mpi_match1 = "0"  ]; then
-        cd $mpi_dir
-        ./install_mpi
-        cd $WARP3D_HOME/src
-     elif [ ! $mpi_match2 = "0"  ]; then
-        cd $mpi_dir
-        ./install_mpi
-        cd $WARP3D_HOME/src
-     else
-        printf " > MPI source code already installed...\n"
-     fi
-}
-# ****************************************************************************
-#
-#   Function: Uninstall MPI code
-#
-# ****************************************************************************
-
-function uninstall_mpi
-{
-#
-#    Check to see if serial (dummy MPI) code is installed.
-#    If not, copy dummy versions of MPI code to current
-#    directory for serial execution.
-
-     mpi_match=`cmp ./mpi_code.f $mpi_dir/mpi_code_dummy.f | wc -l`
-     if [ ! $mpi_match = "0" ]; then
-        cd $mpi_dir
-        ./uninstall_mpi
-        cd $WARP3D_HOME/src
-     else
-        printf " > MPI source code already uninstalled...\n"
-     fi
-}
-
-# ****************************************************************************
-#
-#   Function: Install hypre code
-#
-# ****************************************************************************
-
-function install_hypre
-{
-
-#    Check to see if hypre code is installed.  If not,
-#    copy in the true versions of the code
-
-     hypre_match=`cmp ./iterative_sparse_hypre.f $hypre_dir/src_sparse_hypre.f | wc -l`
-     if [ ! $hypre_match = "0" ]; then
-        cd $hypre_dir
-        ./install_hypre
-        cd $WARP3D_HOME/src
-     else
-        printf " > hypre source code already installed...\n"
-     fi
-}
-
-# ****************************************************************************
-#
-#   Function: Uninstall hypre code
-#
-# ****************************************************************************
-
-function uninstall_hypre
-{
-
-#    Check to see if dummy code is already installed.  If not, install it.
-     hypre_match=`cmp ./iterative_sparse_hypre.f $hypre_dir/dummy_sparse_hypre.f | wc -l`
-     if [ ! $hypre_match = "0" ]; then
-        cd $hypre_dir
-        ./uninstall_hypre
-        cd $WARP3D_HOME/src
-     else
-        printf " > hypre source code already uninstalled...\n"
-     fi
-}
-
-# ****************************************************************************
-#
 #   Function: Issue message to use Makewarp.bat to compile on Windows
 #
 # ****************************************************************************
-
+#
 function print_windows_message
 {
   printf "\n>> To compile on Windows, exit this \n"
@@ -214,106 +100,28 @@ function print_windows_message
 
 # ****************************************************************************
 #
-#     Function:   Global defaults and branch point for Linux{openmp,hybrid}
-#                 {simple,custom}
+#     Function:   Global defaults and branch point for Linux
 #
 # ****************************************************************************
-
+#
 function linux_main
 {
 #
-# These are common defaults for hybrid and openmp
+# These are common defaults
 #
-HYPRE_ROOT=$WARP3D_HOME/linux_packages
 INTEL_FORTRAN=no
 GFORTRAN=no
 MKLQ=yes
 #
-# Branch on mpi/openmp
-#
-printf "Compile OpenMP-only version or hybrid (MPI/OpenMP) version?\n"
-PS3="Select choice: "
-LIST="OpenMP Hybrid Exit"
-select OPT in $LIST
-do
-      case $OPT in
-            "Hybrid")
-                  printf "\n"
-                  COMPILER=mpiifort
-                  ALTCOMPILER=mpiifort
-                  MAKEFILE=Makefile.linux.mpi_omp
-                  INTEL_FORTRAN=yes
-                  MPIQ=yes
-                  break
-                  ;;
-            "OpenMP")
-                  printf "\n"
-                  COMPILER=ifort    # default
-                  ALTCOMPILER=ifort
-                  MAKEFILE=Makefile.linux.omp
-                  MPIQ=no
-                  break
-                  ;;
-            "Exit")
-                  printf "\n"
-                  exit 0
-                  ;;
-          esac
-done
-#
+ COMPILER=ifort    # default
+ ALTCOMPILER=ifort
+ MAKEFILE=Makefile.linux
+ MPIQ=no
+ #
 check_Intel_Fortran_setup
-#
-# Intel Fortran for build OpenMP or MPI + OpenMP.
-#
-# Branch on whether we want simple or interactive mode
-#
-      printf "Simple (defaults, no prompts) or advanced (prompt) mode?\n"
-      PS3="Select choice: "
-      LIST="Simple Advanced Help Exit"
-      select OPT in $LIST
-      do
-            case $OPT in
-                  "Simple")
-                        printf "\n"
-                        linux_simple
-                        break
-                        ;;
-                  "Advanced")
-                        printf "\n"
-                        linux_advanced
-                        break
-                        ;;
-                  "Help")
-                        printf "\n"
-                        linux_help
-                        ;;
-                  "Exit")
-                        printf "\n"
-                        exit 0
-                        ;;
-            esac
-      done
+linux_simple
+# 
 return      
-}
-# ****************************************************************************
-#
-#     Function:   Prints a help message for the linux compiles
-#
-# ****************************************************************************
-function linux_help
-{
-
-      printf "Simple mode will take built-in defaultsems),\n"
-      printf "and checks to ensure they will work on your system.\n"
-      printf "Advanced mode will prompt you for all the configuration variables, but does\n"
-      printf "provide default values.\n\n"
-
-      printf "Simple (defaults, no prompts) or advanced (prompt) mode?\n"
-      printf "1) Simple\n"
-      printf "2) Advanced\n"
-      printf "3) Help\n"
-      printf "4) Exit\n"
-return
 }
 
 # ****************************************************************************
@@ -338,75 +146,9 @@ function linux_simple
             printf "This is not a Linux system.\n Quitting...\n\n"
             exit 1
       fi
-##
-# Just make hypre by default
-#
       HYPQ=no
-      if [ "$MPIQ" = "yes" ]; then
-            HYPQ=yes
-      fi
 #
-# Test existence of mpi compiler if required
-#
-      if [ "$MPIQ" = "yes" ]; then
-            hash mpiifort 2>&- || {
-                  printf "[ERROR]\n"
-                  printf "Cannot find the Intel MPI Fortran compiler (mpiifort) in your PATH.\n"
-                  printf "Have you sourced the Intel compiler variables?\n"
-                  printf "Do you have Intel MPI installed?\n"
-                  printf "Quitting...\n"
-                  printf "\n"
-                  exit 1
-            }
-      fi
-#
-# Test libHYPRE (if we need it)
-#
-      if [ "$HYPQ" = "yes" ]; then
-            if [ ! -e $WARP3D_HOME/linux_packages/lib/libHYPRE.a ]; then
-                  printf "[ERROR]\n"
-                  printf "Cannot find hypre library in $WARP3D_HOME/linux_packages/lib.\n"
-                  printf "Is it compiled?\n"
-                  printf "\n"
-                  exit 1
-            fi
-      fi
-
 }
-
-# ****************************************************************************
-#
-#     Function:   Advanced (prompt but don't check) mode for Linux
-#
-# ****************************************************************************
-function linux_advanced
-{
-      # Just make hypre by default still (we would have linker errors)
-      if [ "$MPIQ" = "yes" ]; then
-            HYPQ=yes
-      else
-            HYPQ=no
-      fi
-
-      printf "\nIn the following prompts enter the values you want for each setting.\n"
-      printf "If you leave a line blank the value will be set to the default.\n"
-      printf "Note: these values will not be checked for correctness as in the simple mode.\n\n"
-
-      printf "Fortran compiler\n"
-      printf "Default: $COMPILER\n"
-      read -p ": " OPT
-      [ -n "$OPT" ] && COMPILER=$OPT
-      printf "\n"
-#
-      if [ $HYPQ = "yes" ]; then
-            printf "hypre root directory\n"
-            printf "Default: $HYPRE_ROOT\n"
-            read -p ": " OPT
-            [ -n "$OPT" ] && HYPRE_ROOT=$OPT
-            printf "\n"
-      fi
-}
-
 # ****************************************************************************
 #
 #     Function:   Compile WARP3D for linux
@@ -420,19 +162,6 @@ function compile_linux_Intel {
 #
       printf "\n"
 
-      if [ $MPIQ = "yes" ] ; then
-            install_mpi
-      else
-            uninstall_mpi
-      fi
-#
-      if [ $HYPQ = "yes" ] ; then
-            install_hypre
-      else
-            uninstall_hypre
-      fi
-      printf "\n"
-#
 # Setup the directory structure if required
 #
       if [ ! -d ../run_linux ]; then
@@ -442,10 +171,6 @@ function compile_linux_Intel {
       if [ ! -d ../obj_linux_omp ]; then
             mkdir ../obj_linux_omp
             printf ">> Making obj_linux_omp directory...\n"
-      fi
-      if [ ! -d ../obj_linux_mpi ]; then
-            mkdir ../obj_linux_mpi
-            printf ">> Making obj_linux_mpi directory...\n"
       fi
 #
 #   prompt the user for the number of concurrent compile processes to use
@@ -462,7 +187,7 @@ touch main_program.f
 #   run the makefile for Linux. we now pass more parameters to the makefile
 #
       printf "... Starting make program for Linux .... \n\n"
-      make -j $JCOMP -f $MAKEFILE COMPILER="$COMPILER" HYPRE_ROOT="$HYPRE_ROOT"
+      make -j $JCOMP -f $MAKEFILE COMPILER="$COMPILER" 
 
 }
 
@@ -525,8 +250,6 @@ printf ".... Installing WARP3D packages for macOS..\n"
 # modify source code to install or unistall WARP3D packages for Mac OS X.
 #
 printf " \n"
-uninstall_mpi
-uninstall_hypre
 printf " \n"
 #
 # setup the directory structure object and executable if required
@@ -559,7 +282,7 @@ make -j $JCOMP -f Makefile.osx
 # ****************************************************************************
 #
 #
-#  Check that WARP3D_HOME evvironment variable is set. Change to
+#  Check that WARP3D_HOME environment variable is set. Change to
 #  src deirctory of distribution. Set local shell variables with directory
 #  names
 #
@@ -575,8 +298,6 @@ if [ -z "$WARP3D_HOME" ]; then
 fi
 #
 cd $WARP3D_HOME/src
-mpi_dir=$WARP3D_HOME/linux_packages/source/mpi_code_dir
-hypre_dir=$WARP3D_HOME/linux_packages/source/hypre_code_dir
 osx_mkl_dir=$WARP3D_HOME/OSX_MKL_files
 #
 #  Prompt user for platform choice

@@ -65,7 +65,7 @@ XXX = abc
 !ENDIF
 #
 OSNAME   = Windows
-BUILDNUM = 4500
+BUILDNUM = 5000
 PRE      = fpp
 #
 ODIR   = .\.\..\obj_windows

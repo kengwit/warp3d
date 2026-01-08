@@ -5,7 +5,8 @@
 #
 #   Developer: rdodds
 #
-#   Last modifications: Sept 24, 2025  (build number 4500)
+#   Last modifications: November 15, 2025  (build number 4600)
+#                       ** MPI support deprecated **
 #
 #   How to run:
 #
@@ -71,7 +72,7 @@
 #
 #
 OSNAME   := OSX
-BUILDNUM := 4500
+BUILDNUM := 5000
 #
 ODIR = ././../obj_macOS
 EXE_NAME = warp3d.omp
@@ -98,6 +99,8 @@ PROFILE  = -pg
 PROFILE  = 
 CHECKFLOAT = -init=snan,arrays -fp-speculation=safe 
 CHECKFLOAT = -fp-speculation=safe
+CHECKOTHER = -check bounds,pointers,uninit
+CHECKOTHER = 
 #
 OSX_LIBDIR = ../OSX_MKL_files
 LINKOPS2  = -static-intel -qopenmp-link=static \
@@ -113,11 +116,11 @@ ALL_PROCESSORS = -axAVX,CORE-AVX2,COMMON-AVX512 -xIVYBRIDGE \
 ALL_PROCESSORS = -axAVX,CORE-AVX2 -xIVYBRIDGE \
                        -align array64byte  -qopt-zmm-usage=high
 HARDWARE_SPECIFIC = -xHOST  -align array64byte  -qopt-zmm-usage=high
-MACHINE_TYPE =  $(ALL_PROCESSORS) # $(HARDWARE_SPECIFIC) #$(ALL_PROCESSORS)
+MACHINE_TYPE =  $(HARDWARE_SPECIFIC) #$(ALL_PROCESSORS)
 #
 FCOPTS   =  -O3 -fpp -fpconstant -fixed -72 -traceback $(PROFILE) \
             $(OPT_REPORT) -module $(ODIR) -ftz  $(MACHINE_TYPE) \
-            $(FTRAP) $(INLINE) $(OPENMP) $(CHECKFLOAT)
+            $(FTRAP) $(INLINE) $(OPENMP) $(CHECKFLOAT) $(CHECKOTHER)
 #
 FOR      = $(COMPILER) $(FCOPTS) -D$(KMP_ERROR) -D$(OSNAME) 
 LINK     = $(COMPILER) $(FCOPTS)
@@ -138,19 +141,16 @@ MODS     := $(OD)/mod_adaptive_steps.o \
 			$(OD)/mod_eleblocks.o \
 			$(OD)/mod_elem_load.o \
 			$(OD)/mod_file_info.o \
-			$(OD)/mod_hypre.o \
 			$(OD)/mod_jintegral.o \
 			$(OD)/mod_local_stiffness.o \
 			$(OD)/mod_main.o \
 			$(OD)/mod_mpc.o \
-			$(OD)/mod_mpi_lnpcg.o \
 			$(OD)/mod_pconvert.o \
 			$(OD)/mod_performance.o \
 			$(OD)/mod_scan.o       \
 			$(OD)/mod_segmental_curves.o \
 			$(OD)/mod_stiffness.o \
-			$(OD)/mod_trlist.o \
-			$(OD)/distributed_assembly.o  # contain a module definition
+			$(OD)/mod_trlist.o
 #
 INCLUDES := param_def include_mm10 include_sig_up include_tan_ek \
 			include_usr_parm include_damage_values
@@ -169,12 +169,10 @@ OBJ =	 \
 	$(OD)/mod_elem_load.o	 \
 	$(OD)/mod_eleblocks.o	 \
 	$(OD)/mod_file_info.o	 \
-	$(OD)/mod_hypre.o     \
 	$(OD)/mod_jintegral.o	 \
 	$(OD)/mod_local_stiffness.o \
 	$(OD)/mod_main.o	 \
 	$(OD)/mod_mpc.o	 \
-	$(OD)/mod_mpi_lnpcg.o	 \
 	$(OD)/mod_performance.o \
 	$(OD)/mod_pconvert.o	 \
 	$(OD)/mod_scan.o	 \
@@ -210,7 +208,6 @@ OBJ =	 \
 	$(OD)/derivs.o	 \
 	$(OD)/didriv.o	 \
 	$(OD)/distup.o	 \
-	$(OD)/distributed_assembly.o  \
 	$(OD)/difrar.o	 \
 	$(OD)/di1dsf.o	 \
 	$(OD)/dimrot.o	 \
@@ -272,7 +269,6 @@ OBJ =	 \
 	$(OD)/intab.o	 \
 	$(OD)/inpatch.o	 \
 	$(OD)/iodevn.o	 \
-	$(OD)/iterative_sparse_hypre.o \
 	$(OD)/kg1.o	 \
 	$(OD)/license.o	 \
 	$(OD)/linked_list.o	 \
@@ -296,9 +292,7 @@ OBJ =	 \
 	$(OD)/mm10_f.o   \
 	$(OD)/mm11.o       \
 	$(OD)/mmnoopt.o	\
-	$(OD)/mm_return_values.o \
-	$(OD)/mpi_code.o	 \
-	$(OD)/mpi_handle_slaves.o \
+	$(OD)/mm_return_values.o	\
 	$(OD)/mpc_modify.o	 \
 	$(OD)/name_strip.o	 \
 	$(OD)/ndpts1.o	 \
@@ -488,11 +482,7 @@ $(ODIR)/mod_elem_load$O : mod_elem_load.f param_def
 $(ODIR)/mod_file_info$O : mod_file_info.f
 	$(RMC)  $@
 	$(FOR) $< -c -o $@
-
-$(ODIR)/mod_hypre$O : mod_hypre.f  param_def
-	$(RMC)  $@
-	$(FOR) $< -c -o $@
-
+	
 $(ODIR)/mod_jintegral$O : mod_jintegral.f param_def
 	$(RMC)  $@
 	$(FOR) $< -c -o $@
@@ -506,10 +496,6 @@ $(ODIR)/mod_main$O : mod_main.f
 	$(FOR) $< -c -o $@
 
 $(ODIR)/mod_mpc$O : mod_mpc.f param_def
-	$(RMC)  $@
-	$(FOR) $< -c -o $@
-
-$(ODIR)/mod_mpi_lnpcg$O : mod_mpi_lnpcg.f param_def
 	$(RMC)  $@
 	$(FOR) $< -c -o $@
 
