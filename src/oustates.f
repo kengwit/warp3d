@@ -5,7 +5,7 @@ c     *                   subroutine oustates_files                  *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *
-c     *                   last modified : 2/2/2017 rhd               *
+c     *                   last modified : 1/7/26 rhd                 *
 c     *                                                              *
 c     *    writes patran or flat files of element state results      *
 c     *                                                              *
@@ -15,28 +15,31 @@ c
      &                           flat_file, stream_file, text_file,
      &                           compressed )
 c
-      use global_data, only : ltmstp, stname,lsldnm, out, myid, 
-     &                        use_mpi, noelem, mxmat, max_crystals,
+      use global_data, only : ltmstp, stname,lsldnm, out, 
+     &                        noelem, mxmat, max_crystals,
      &                        nelblk, elblks, iprops, nonode  
       use elem_block_data, only: history_blk_list ! read only
       use main_data, only: material_model_names,    ! all read only
      &                     output_states_type_opt1,
      &                     output_states_type_opt2
+      use constants, only : zero
+c      
       implicit none
       logical :: ouflg, oubin, ouasc, ounod, flat_file, stream_file,
      &           text_file, compressed
 c
-c           locals
+c           locals.
 c
-      integer, parameter ::  max_comment_lines=200
-      logical :: local_debug, patran_file, loop_debug, found_cp_matl,
-     &           last_blk
-      integer, external :: warp3d_get_device_number, omp_get_thread_num,
-     &                     warp3d_matl_num
+      integer, parameter :: max_comment_lines = 200
+      logical, parameter :: local_debug = .false.
+c      
+      logical :: patran_file, loop_debug, found_cp_matl, last_blk
+      integer, external :: warp3d_get_device_number, 
+     &                     omp_get_thread_num, warp3d_matl_num
       double precision, allocatable, dimension(:,:) :: st_values
-      double precision ::
-     &  start_time, end_time, zero, start_time2, end_time2
+      double precision :: start_time, end_time, start_time2, end_time2
       double precision, external :: omp_get_wtime
+c      
       integer :: num_values, num_states, num_matl_models, ncrystals,
      &           matl_model_list(mxmat), mcount, num_comment_lines,
      &           cp_model_type, matnum, max_cp_states_values,
@@ -48,8 +51,7 @@ c
      &           now_thread, int_points, span, hist_size, size_state,
      &           data_type, patran_file_number, flat_file_number
       integer :: crystal_list(max_crystals) !in param_def
-      integer, allocatable :: states_cp_matl_info(:,:),
-     &                        elements_in_this_domain(:)
+      integer, allocatable :: states_cp_matl_info(:,:)
       real, allocatable :: sngl_values(:)
 c
       character(len=:), allocatable :: matl_name_id
@@ -60,29 +62,8 @@ c
       character(len=100) :: header_name
       character(len=20) :: mnames(mxmat)
 c
-      data zero / 0.0d00 /
-c
-      call wmpi_alert_slaves ( 32 )
-      call wmpi_bcast_log( ouflg )
-      call wmpi_bcast_log( oubin )
-      call wmpi_bcast_log( ouasc )
-      call wmpi_bcast_log( ounod )
-      call wmpi_bcast_log( flat_file )
-      call wmpi_bcast_log( stream_file )
-      call wmpi_bcast_log( text_file )
-      call wmpi_bcast_log( compressed )
-c
-      call wmpi_bcast_int( output_states_type_opt1 )
-      call wmpi_bcast_int( output_states_type_opt2 )
-      call wmpi_bcast_int ( ltmstp ) ! load step number
-c
-      call wmpi_bcast_string( stname, 8 )
-      call wmpi_bcast_string( lsldnm, 8 )
-
-
-      local_debug = .false.
       if( local_debug ) then
-          write(out,9000) myid, ouflg, oubin, ouasc, ounod,
+          write(out,9000) ouflg, oubin, ouasc, ounod,
      &    flat_file, stream_file, text_file, compressed
       end if
 c
@@ -105,7 +86,6 @@ c           material types appear only once in the material list.
 c
 c           for CP model, make an integer list of which
 c           crystals will have results included in the states file
-
 c
       max_cp_states_values     = -1
       max_states_values        = -1
@@ -133,7 +113,7 @@ c
       allocate( sngl_values(size_state), state_labels(size_state),
      &          state_descriptors(size_state) )
 c
-      call oustates_write_states_headers ! only on rank 0
+      call oustates_write_states_headers 
 c
 c      3.   loop over the WARP3D (built-in/umat) material models
 c           in FE model. output a material states file for
@@ -141,15 +121,9 @@ c           each type of material that appears in the model.
 c           the material model name (e.g. mises) is included in the
 c           file name. Omit models that do not support states output.
 c
-c           we're processing 1 load(time) step of results here. for mpi,
-c           keep a list of elements in this domain just for convenience
-c           at time to write states file
+c           we're processing 1 load(time) step of results here. 
 c
       start_time2 = omp_get_wtime()
-      if( use_mpi ) then
-         allocate( elements_in_this_domain(noelem) )
-         elements_in_this_domain = 0
-      end if
 c
       do matl_count = 1, num_matl_models ! serial loop
 c
@@ -198,7 +172,6 @@ c
       deallocate( sngl_values, state_labels, state_descriptors )
       if( allocated( states_cp_matl_info ) )
      &   deallocate( states_cp_matl_info )
-      if( use_mpi ) deallocate( elements_in_this_domain )
 c
       end_time2 = omp_get_wtime()
 
@@ -211,7 +184,6 @@ c
       return
 c
  9000 format(//,2x,"... Entered oustates_files for states output",
-     &  /,10x,"myid: ",i5,
      &  /,10x,"ouflg, oubin, ouasc, ounod:                    ",4l5,
      &  /,10x,"flat_file, stream_file, text_file, compressed: ",4l5  )
  9010 format(/1x,
@@ -554,7 +526,6 @@ c
         end if
 c
 
-        if( myid .ne. 0 ) cycle
         open( unit=header_file,file=header_name,access="sequential",
      &       form="formatted" )
         write(header_file,9100) matl_name_id
@@ -629,7 +600,6 @@ c$OMP&                      mat_type, int_points, span, hist_size,
 c$OMP&                      ncrystals_blk, matnum )
 c
       do blk = 1, nelblk
-          if( elblks(2,blk) .ne. myid ) cycle
           now_thread  = omp_get_thread_num() + 1
           felem       = elblks(1,blk)
           elem_type   = iprops(1,felem)
@@ -640,7 +610,7 @@ c
           ncrystals_blk = 0
           matnum      = iprops(38,felem)
 c
-          if( local_debug ) write(out,9050) myid, blk, felem, elem_type,
+          if( local_debug ) write(out,9050) blk, felem, elem_type,
      &                      mat_type, int_points, span, hist_size
           is_bar_elem  = bar_types(elem_type)
           is_link_elem = link_types(elem_type)
@@ -656,12 +626,6 @@ c
      &                            output_states_type_opt1,
      &                            output_states_type_opt2,
      &                            nterms_crystal_list, crystal_list )
-             if( use_mpi ) then ! add blk elems to list for domain
-              do i = 1, span
-                elem = felem + i - 1
-                elements_in_this_domain(elem) = 1
-              end do
-             end if
           end if
       end do ! over blks
 c$OMP END PARALLEL DO
@@ -669,7 +633,7 @@ c$OMP END PARALLEL DO
 c
       return
 c
- 9050 format(10x,"myid, block, felem, etype, mtype:  ",5i7,
+ 9050 format(10x,"block, felem, etype, mtype:  ",4i7,
      &  /,10x,   "int_pts, span, hist_size:    ",3i7 )
 c
       end subroutine oustates_process_blks
@@ -722,7 +686,7 @@ c
       end if
 c
       call ouocst_elem( data_type, ltmstp, oubin, ouasc,
-     &                  patran_file_number, 1, use_mpi, myid,
+     &                  patran_file_number, 1, 
      &                  flat_file, stream_file, text_file, compressed,
      &                  flat_file_number, matl_name_id )
 c
@@ -742,7 +706,7 @@ c
 c           close the states file
 c
       call ouocst_elem( data_type, ltmstp, oubin, ouasc,
-     &                  patran_file_number, 2, use_mpi, myid,
+     &                  patran_file_number, 2,
      &                  flat_file, stream_file, text_file, compressed,
      &                  flat_file_number, dummy_string )
 c
@@ -847,9 +811,6 @@ c
 c
       if( patran_file .and. oubin ) then
          do elem = 1, noelem
-           if( use_mpi ) then
-              if( elements_in_this_domain(elem) .eq. 0 ) cycle
-           end if
            do k = 1, num_states
              sngl_values(k) = sngl( st_values(k,elem) )
            end do
@@ -860,9 +821,6 @@ c
 c
       if( patran_file .and. ouasc ) then
          do elem = 1, noelem
-           if( use_mpi ) then
-              if( elements_in_this_domain(elem) .eq. 0 ) cycle
-           end if
            do k = 1, num_states
              sngl_values(k) = sngl( st_values(k,elem) )
            end do
@@ -872,15 +830,7 @@ c
       end if
 c
       if( flat_file .and. stream_file  ) then
-         if( use_mpi ) then
-           write(flat_file_number) num_states
-           do elem = 1, noelem
-            if( elements_in_this_domain(elem) .eq. 0 ) cycle
-            write(flat_file_number) elem, st_values(1:num_states,elem)
-           end do
-         else
-           write(flat_file_number) st_values ! big 2d array
-         end if
+        write(flat_file_number) st_values ! big 2d array
       end if
 c
       if( flat_file .and. text_file ) then
@@ -888,15 +838,8 @@ c
            write(out,9010)  num_states, 25000
            call die_gracefully
          end if
-         if( use_mpi )write(flat_file_number,*) num_states
          do elem = 1, noelem
-           if( use_mpi ) then
-            if( elements_in_this_domain(elem) .eq. 0 ) cycle
-            write(flat_file_number,9200) elem,
-     &                  st_values(1:num_states,elem)
-           else
             write(flat_file_number,9100) st_values(1:num_states,elem)
-           end if
          end do
       end if
 c
@@ -1003,7 +946,6 @@ c
      & /,    '                job aborted',//)
 c
       end
-
 c
 c     ****************************************************************
 c     *                                                              *
@@ -1089,7 +1031,7 @@ c     *     Write header lines for flat text files of state values   *
 c     *     & sizes for stream files                                 *
 c     *                                                              *
 c     ****************************************************************
-
+c
       subroutine oustates_flat_header(
      &  flat_file_number, text_file, stream_file, nonode, noelem,
      &  ltmstp, num_states, stname  )
