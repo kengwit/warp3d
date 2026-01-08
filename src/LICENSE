@@ -56,6 +56,4 @@ licenses, and/or restrictions:
 
 Program                 Directory
 -------                 ---------
-hypre                   linux_packages/source/hypre-2.7.0b
-metis                   linux_packages/source/metis-4.0
 Intel MKL libraries     linux_packages/lib
