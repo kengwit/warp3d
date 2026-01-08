@@ -4,7 +4,7 @@ c     *                      subroutine initst                       *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 10/20/25 rhd               *
+c     *                   last modified : 11/7/25 rhd                *
 c     *                                                              *
 c     *     at program startup, initializes various variables and    *
 c     *     arrays needed to set up the program correctly.           *
@@ -52,11 +52,7 @@ c
       use file_info
       use contact
       use damage_data
-      use hypre_parameters
       use performance_data
-      use distributed_stiffness_data, only: parallel_assembly_allowed,
-     &                                      initial_map_type,
-     &                                      final_map_type
 c
       use crystal_data, only: c_array, cry_multiplier, defined_crystal,
      &                        nangles, srequired
@@ -369,27 +365,28 @@ c
 c    **********************************************************************
 c    *                                                                    *
 c    *                     Selection of Solver Type                       *
-c    *                (some are now obsolete and removed)                 *
+c    *                (most are now obsolete and removed)                 *
 c    *                                                                    *
 c    *    The solver flag is an integer:                                  *
+c    *                                                                    *
+c    *      7 = Intel MKL Pardiso symmetric (Win, Mac, Linux)             *
+c    *      8 = Intel MKL Pardiso asymmetric (Win, Mac, Linux)            *
+c    *                                                                    *
+c    *      All others below deprecated with removal of MPI support       *
+c    *                                                                    *
 c    *      -1 = Lin. Preconditioned Conj. Gradient solver (lnpcg)        *
 c    *           no longer allowed via input. code gradually removed      *
+c    *           DEPRECATED                                               *
 c    *      0, 1, 2, 3, 4, 5,  available                                  *
 c    *      6 = (not implemented) IBM WSMP                                *
 c    *      7 = Intel MKL Pardiso symmetric (Win, Mac, Linux)             *
 c    *      8 = Intel MKL Pardiso asymmetric (Win, Mac, Linux)            *
-c    *      9 = hypre iterative solver w/ various preconditioners (LLNL)  *
-c    *          (Linux only)                                              *
-c    *     10 = Cluster Pardiso - symmetric. Linux only                   *
-c    *          (Linux only)                                              *
-c    *     11 = Cluster Pardiso - asymmetric. Linux only                  *
 c    *                                                                    *
 c    **********************************************************************
 c
 c
       old_solver_flag = -2
       solver_flag = 7
-      if( use_mpi ) solver_flag = 10
       solver_out_of_core = .false.
       solver_scr_dir(1:) = './warp3d_ooc_solver'
       solver_memory      = 500
@@ -712,57 +709,11 @@ c                       iter =0 computations to be run
 c
       creep_model_used = .false.
 c
-c                       hypre solver defaults.  See the hypre reference manual
-c                       for rational (if provided) as I just copy
-c                       these over from there.  The exception is the
-c                       maximum iterations value (hypre_max)
-c                       which I increased to 10,000 to allow for our typically
-c                       ill-conditioned plasticity problems.
-c
-      precond_type = 1
-      hsolver_type = 1
-      precond_printlevel = 0
-      solver_printlevel = 0
-c
-      hypre_tol = 1.0D-8
-      hypre_max = 10000
-c
-      levels = 0
-      threshold = 0.25
-      filter = 0.1
-      symme = 1
-      loadbal = 0.0
-c
-      hyp_first_solve = .true.
-c
-      precond_fail_count = 0
-c
-      hyp_trigger_step = .false.
-c
-      max_levels = 10
-      mg_threshold = 0.8
-      coarsening = 10
-      agg_levels = 1
-      interpolation = 5
-      truncation = 0.0
-      relaxation = 6
-      relax_wt = 1.0
-      relax_outer_wt = 1.0
-      cf = 0
-      cycle_type = 1
-      sweeps = 1
-c
 c           Performance data defaults (zero out assembly counter)
 c
       ntimes_assembly = 0
       assembly_total = 0.0
       time_assembly = .false.
-c
-c           Distributed assembly params
-c
-      parallel_assembly_allowed = .true.
-      initial_map_type = 2
-      final_map_type = 1
 c
 c           Crystal properties
 c

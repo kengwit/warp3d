@@ -4,18 +4,28 @@ c     *                      subroutine indypm                       *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 11/15/22 rhd               *
+c     *                   last modified : 11/7/25 rhd                *
 c     *                                                              *
 c     *     input parameters controlling how the solution is         *
 c     *     performed for analysis                                   *
 c     *                                                              *
 c     ****************************************************************
 c
-c
-c
       subroutine indypm( sbflg1, sbflg2 )
-      use global_data ! old common.main
-c
+c            
+      use global_data, only : new_analysis_param, out, num_error, 
+     &                        nbeta, dt, mxcvtests, convrg, tol, 
+     &                        halt, mxiter, mniter, linmas, ltmstp,
+     &                        solver_flag, solver_mkl_iterative, trace,
+     &                        adaptive_flag, batch_messages, noelem,
+     &                        time_limit, signal_flag, batch_messages,
+     &                        qbar_flag, solver_out_of_core, 
+     &                        solver_memory, solver_memory, iprops,
+     &                        show_details, sparse_stiff_output,
+     &                        sparse_stiff_binary, eps_bbar, 
+     &                        solver_scr_dir, solver_threads, 
+     &                        sparse_research, sparse_stiff_file_name,
+     &                        input_ok  
       use mod_mpc, only : display_mpcs
       use main_data, only : output_packets, packet_file_name,
      &                      run_user_solution_routine, cp_unloading,
@@ -27,19 +37,14 @@ c
      &                      ls_max_step_length, ls_rho,
      &                      ls_slack_tol, umat_serial,
      &                      initial_state_option, initial_state_step
-      use hypre_parameters
-      use performance_data
-      use distributed_stiffness_data, only : parallel_assembly_allowed,
-     &                                       initial_map_type,
-     &                                       final_map_type
       use j_data, only :  J_cutoff_active, J_cutoff_restart_file,
      &                    J_cutoff_ratio, J_cutoff_e, J_cutoff_nu,
      &                    J_target_diff, J_ratio_adaptive_steps,
      &                    J_compute_step_2_automatic, 
      &                    J_auto_step_2_delta_K, Kr_target_diff,
      &                    Kr_min_limit
-      use constants
-
+      use constants, only : zero, one, half, five, ptsix, pt_zero_one,
+     &                      ten, pt_three
 c
       implicit none
 c
@@ -98,16 +103,16 @@ c
       if( matchs('sparse',5)        ) go to 2600
       if( matchs('binary',5)        ) go to 2700
       if( matchs('display',4)       ) go to 2800
-      if( matchs('hypre',5)         ) go to 2900
+      if( matchs('hypre',5)         ) go to 2900 ! deprecated
       if( matchs('umat',4)          ) go to 3000
-      if( matchs('assembly',5)      ) go to 3100
+      if( matchs('assembly',5)      ) go to 3100 
       if( matchs('user_routine',6)  ) go to 3200
       if( matchs('unloading',6)     ) go to 3300
       if( matchs('divergence',5)    ) go to 3400
       if( matchs_exact('line')      ) go to 3500 ! line search
       if( matchs_exact('initial')   ) go to 3600 ! state
       if( matchs_exact('J')         ) go to 3700 ! J cutoff, adaptive,
-      if( matchs_exact('Kr')        ) go to 3700 !     "      "                                             auto step 2 size 
+      if( matchs_exact('Kr')        ) go to 3700 !     "      "   auto step 2 size 
 c
 c                       no match with solutions parameters command.
 c                       return to driver subroutine to look for high
@@ -448,9 +453,6 @@ c
       if ( matchs('direct',6) ) then
         local_direct = .true.
         if ( endcrd(dum) ) then
-c          if (use_mpi) then  ! removed for now
-c            call errmsg(333,dum,dums,dumr,dumd)
-c          end if
           solver_mkl_iterative = .false.
           solver_flag = 0
           go to 1150
@@ -460,9 +462,6 @@ c
       if ( matchs('pardiso',6) ) then
         local_direct_flag = .true.
         if ( endcrd(dum) ) then
-c          if (use_mpi) then   ! removed for now
-c            call errmsg(333,dum,dums,dumr,dumd)
-c          end if
           solver_mkl_iterative = .false.
           solver_flag = 0
           go to 1150
@@ -473,9 +472,6 @@ c                Pardiso direct. try to allow most possible
 c                combinations of words direct sparse
 c
       if ( matchs('sparse',5) ) then
-c        if (use_mpi) then
-c            call errmsg(333,dum,dums,dumr,dumd)
-c        end if
         if ( endcrd(dum) ) then
                solver_flag = 7
                solver_mkl_iterative = .false.
@@ -501,9 +497,6 @@ c
 c                 Pardiso sparse iterative
 c
       if ( matchs('iterative',8)) then
-c         if (use_mpi) then
-c            call errmsg(333,dum,dums,dumr,dumd)
-c         end if
          solver_mkl_iterative = .true.
          solver_flag = 7
          go to 1150
@@ -529,12 +522,19 @@ c
             go to 1150
       end if
 c
-      if( matchs('hypre',5) ) solver_flag = 9
+      if( matchs('hypre',5) ) then
+        solver_flag = 0
+        num_error = num_error + 1
+        write(out,9600)
+        go to 10
+      end if  
 c
       if( matchs('cluster',4) ) then
-        solver_flag = 10
-        if( asymmetric_assembly ) solver_flag = 11
+        solver_flag = 0
         solver_mkl_iterative = .false.
+        num_error = num_error + 1
+        write(out,9605)
+        go to 10
       end if
 c
  1150 continue
@@ -544,21 +544,6 @@ c
         write(*,*) "......... mkl_iter_flg: ", solver_mkl_iterative
         write(*,*) " "
       end if
-      if( .not. use_mpi ) then
-        if( solver_flag == 10 .or. solver_flag == 11 ) then
-          num_error = num_error + 1
-          write(out,9200)
-          solver_flag = 7
-        end if
-        if( solver_flag == 9 ) then
-          num_error = num_error + 1
-          write(out,9210)
-          solver_flag = 7
-        end if
-      end if
-c      write(*,*) "......... solver: ", solver_flag
-c      write(*,*) "......... mkl_iter_flg: ", solver_mkl_iterative
-c      write(*,*) " "
       go to 10
 c
 c
@@ -956,165 +941,13 @@ c
 c
 c **********************************************************************
 c *                                                                    *
-c *                     all hypre parameters                           *
-c *    Input parameters for hypre iterative solver and                 *
-c *    parasails or boomeramg preconditioner.                          *
-c *                                                                    *
+c *                     <available>                                    *
+c *                                                                    *      
 c **********************************************************************
 c
 c
  2900 continue
-      if (matchs('printlevel',5)) then
-            if(.not.integr(idum)) then
-               call errmsg(103,dum,dums,dumr,dumd)
-            else
-                precond_printlevel = idum
-                solver_printlevel = idum
-            end if
-      else if (matchs('preconditioner',7) ) then
-            if (matchs('parasails',4) ) then
-                  precond_type = 1
-            else if (matchs('boomeramg',4) ) then
-                  precond_type = 2
-            else
-                  call errmsg(332,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('coarsening',7)) then
-            if (matchs('CLJP',4)) then
-                  coarsening = 0
-            elseif (matchs('falgout',7)) then
-                  coarsening = 6
-            elseif (matchs('PMIS',4)) then
-                  coarsening = 8
-            elseif (matchs('HMIS',4)) then
-                  coarsening = 10
-            else
-                  call errmsg(332,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('solver',6 ) ) then
-            if (matchs('pcg',3) ) then
-                  hsolver_type = 1
-            else
-                  call errmsg(332,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('interpolation',6)) then
-            if (matchs('classical',7)) then
-                  interpolation = 0
-            elseif (matchs('direct',6)) then
-                  interpolation = 3
-            elseif (matchs('standard',8)) then
-                  interpolation = 9
-            elseif (matchs('multipass',5)) then
-                  interpolation = 5
-            elseif (matchs('ext_classical',3)) then
-                  interpolation = 6
-            else
-                  call errmsg(332,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('relaxation',6)) then
-            if (matchs('jacobi',6)) then
-                  relaxation = 0
-            elseif (matchs('gs',2)) then
-                  relaxation = 6
-            else
-                  call errmsg(332,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('max_levels',9) ) then
-            if(.not.integr(max_levels)) then
-               call errmsg(103,dum,dums,dumr,dumd)
-            else
-            end if
-      else if (matchs('levels',3) ) then
-            if(.not.integr(levels)) then
-               call errmsg(103,dum,dums,dumr,dumd)
-            else
-            end if
-      else if (matchs('threshold',6) ) then
-            if( numd(dnum) ) then
-                  threshold = dnum
-            else
-                  call errmsg(91,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('mg_threshold',8) ) then
-            if( numd(dnum) ) then
-                  mg_threshold = dnum
-            else
-                  call errmsg(91,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('filter',4) ) then
-            if( numd(dnum) ) then
-                  filter = dnum
-            else
-                  call errmsg(91,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('symmetry',3) ) then
-            if(.not.integr(symme)) then
-               call errmsg(103,dum,dums,dumr,dumd)
-            else
-            end if
-      else if (matchs('balance',3) ) then
-            if( numd(dnum) ) then
-                  loadbal = dnum
-            else
-                  call errmsg(91,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('tolerance',4) ) then
-            if (numd(dnum)) then
-                  hypre_tol = dnum
-            else
-                  call errmsg(91,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('iterations',5) ) then
-            if (.not. integr(hypre_max) ) then
-                  call errmsg(103,dum,dums,dumr,dumd)
-            else
-            end if
-      else if (matchs('cycle_type',5))  then
-            if (matchs('V',1)) then
-                  cycle_type = 1
-            elseif (matchs('W',1)) then
-                  cycle_type = 2
-            else
-                  call errmsg(332,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('sweeps',6)) then
-            if (.not. integr(sweeps) ) then
-                  call errmsg(103,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('agg_levels',5) ) then
-            if (.not. integr(agg_levels) ) then
-                  call errmsg(103,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('truncation',5) ) then
-            if (numd(dnum) ) then
-                  truncation = dnum
-            else
-                  call errmsg(103,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('wt_relax',8) ) then
-            if (numd(dnum) ) then
-                  relax_wt = dnum
-            else
-                  call errmsg(103,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('wt_outer',8) ) then
-            if (numd(dnum) ) then
-                  relax_outer_wt = dnum
-            else
-                  call errmsg(103,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('cs',2) ) then
-            if (matchs('T',1) ) then
-                  cf = 1
-            elseif (matchs('F',1)) then
-                  cf = 0
-            else
-                  call errmsg(332,dum,dums,dumr,dumd)
-            end if
-      else
-            call errmsg(332,dum,dums,dumr,dumd)
-      end if
-c
+      write(out,9600)
       go to 10
 c
 c **********************************************************************
@@ -1143,47 +976,13 @@ c
 c **********************************************************************
 c *                                                                    *
 c *                     Parameters dealing with                        *
-c *                    parallel and asymmetric assembly routines       *
+c *                    asymmetric assembly routines                    *
 c *                                                                    *
 c **********************************************************************
 c
 c
  3100 continue
-      if (matchs('parallel',4)) then
-            if (matchs('on',2)) then
-                  parallel_assembly_allowed=.true.
-            else if (matchs('off',3)) then
-                  parallel_assembly_allowed=.false.
-            else
-                  call errmsg(343,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('initial',4)) then
-            if (matchs('srows',4)) then
-                  initial_map_type = 1
-            else if (matchs('brows',4)) then
-                  initial_map_type = 2
-            else
-                  call errmsg(342,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('final',5)) then
-            if (matchs('initial',7)) then
-                  final_map_type = 1
-            else if (matchs('srows',4)) then
-                  final_map_type = 2
-            else if (matchs('mat-vec',7)) then
-                  final_map_type = 3
-            else
-                  call errmsg(342,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('time',4)) then
-            if (matchs('on',2)) then
-                  time_assembly = .true.
-            else if (matchs('off',3)) then
-                  time_assembly = .false.
-            else
-                  call errmsg(343,dum,dums,dumr,dumd)
-            end if
-      else if (matchs('asymmetric',5)) then
+      if (matchs('asymmetric',5)) then
             if (matchs('on',2)) then
                   asymmetric_assembly = .true.
             else if (matchs('off',3)) then
@@ -1194,7 +993,6 @@ c
       else
             call errmsg(340,dum,dums,dumr,dumd)
       end if
-
       go to 10
 c
 c **********************************************************************
@@ -1454,10 +1252,6 @@ c
  9010 format(/1x,'>>>>> error: deprecated solution option',/)
  9100 format(/1x,'>>>>> Warning:  the file name has been truncated ',
      &           'to 80 characters...',/)
- 9200 format(/1x,'>>>>> Error: cluster solver not compatible ',
-     &   /16x,'with threads-only execution.'/)
- 9210 format(/1x,'>>>>> Error: hypre solver not compatible ',
-     &   /16x,'with threads-only execution.'/)
  9510 format(/1x,'.... dump of line search values ....',
      &      /,10x,'line_search:          ', l1,
      &      /,10x,'ls_details:           ', l1,
@@ -1480,6 +1274,9 @@ c
  9575 format(/1x,'>>>>> error: unrecognized J option. expecting ',
      & 'keyword: cutoff, adaptive or automatic',/,
      &           '              scanning: ', a )
+ 9600 format(/1x,'>>>>> error: HYpre solver has been deprecated',/)
+ 9605 format(/1x,'>>>>> error: Cluster solver has been deprecated',/)
+ 9610 format(/1x,'>>>>> error: Assembly command deprecated',/)
 c
       contains
 c     ========

@@ -4,7 +4,7 @@ c     *                      subroutine license                      *
 c     *                                                              *          
 c     *                       written by : ag                        *          
 c     *                                                              *          
-c     *                   last modified : 01/17/95 by asg            *          
+c     *                   last modified : 11/7/25 rhd                *          
 c     *                                                              *          
 c     *        This subroutine prints out the license agreement      *          
 c     *        for WARP3D.                                           *          
@@ -110,10 +110,6 @@ c
      &"Program                 Directory"                                       
       write (out,*)                                                             
      &"-------                 ---------"                                       
-      write (out,*)                                                             
-     &"hypre                   linux_packages/source/hypre-2.7.0b"              
-      write (out,*)                                                             
-     &"metis                   linux_packages/source/metis-4.0"                 
       write (out,*)                                                             
      &"Intel MKL libraries     linux_packages/lib"                              
       write (out,*)                                                             

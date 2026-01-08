@@ -4,7 +4,7 @@ c     *                      subroutine incrack                      *
 c     *                                                              *          
 c     *                       written by : AG                        *          
 c     *                                                              *          
-c     *                   last modified : 5/18/23 rhd                *          
+c     *                   last modified : 7/11/25 rhd                *          
 c     *                                                              *          
 c     *                   input crack growth parameters              *
 c     *                                                              *          
@@ -13,9 +13,8 @@ c
 c                                                                               
       subroutine incrack( sbflg1, sbflg2 )                                      
 c
-      use global_data, only : out, noelem, num_error, iprops, use_mpi,
-     &                        dstmap
-      use constants
+      use global_data, only : out, noelem, num_error, iprops, dstmap
+      use constants, only : hundred, zero, one, two, d32460
       use allocated_integer_list, only : trlist_allocated
       use main_data, only : cnstrn_in                                           
       use damage_data
@@ -1174,14 +1173,6 @@ c          | (mesh) regularization                  |
 c          ------------------------------------------                           
 c                                                                               
  2400 continue   
-c
-c                not supported yet with MPI
-c
-      if( use_mpi ) then
-         call incrack_errmsg( 65 )
-         go to 10
-      end if
-                                                                     
 c                                                                               
 c                don't change number if elements have been killed        
 c
@@ -1207,17 +1198,9 @@ c          -----------------------------------------------------------
 c                                                                               
  2500 continue   
 c
-c                not supported yet with MPI
-c
       use_distortion_metric = .false.
       Oddy_print_initial = .false.
       distortion_plastic_limit = hundred  ! so never gets invoked 
-c
-      if( use_mpi ) then
-         call incrack_errmsg( 66 )
-         call scan_flushline
-         go to 10
-      end if
 c
       if( .not. matchs('distortion',6) ) then
          call incrack_errmsg( 67 )
@@ -1926,10 +1909,6 @@ c
 c
       allocate( smcs_states_intlst( lenlst ) )
       smcs_states_intlst(1:) = temp_list(1:lenlst)
-c
-c        not yet supported on MPI
-c     
-      if( use_mpi ) call incrack_errmsg( 17 )
 c
       return
 c

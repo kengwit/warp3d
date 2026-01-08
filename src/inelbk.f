@@ -5,26 +5,29 @@ c     *                      subroutine inelbk                       *
 c     *                                                              *          
 c     *                       written by : rhd                       *          
 c     *                                                              *          
-c     *                   last modified : 11/26/2018 rhd             *          
+c     *                   last modified : 11/15/2025 rhd             *          
 c     *                                                              *          
 c     *     input of element blocking information. computations for  *          
-c     *     element blocking and optionally domains if requested     *          
+c     *     element blocking                                         *          
 c     *                                                              *          
 c     ****************************************************************          
 c                                                                               
 c                                                                               
-      subroutine inelbk( sbflg1, sbflg2 )                                       
-      use global_data ! old common.main
+      subroutine inelbk( sbflg1, sbflg2 )   
+c                                                
+      use global_data, only : nelblk, mxnmbl, noelem, elblks, mxvl,
+     &                        out 
+c     
       implicit none                                                             
 c                                                                               
-      logical :: sbflg1,sbflg2                                                  
+      logical :: sbflg1, sbflg2                                                  
 c                                                                               
       integer :: i, auto_size, ival, blk, param, proc, span, felem,             
      &           elem, msgcnt, dum, nc                                          
       integer, allocatable :: checkblk(:)                                       
       real :: dumr                                                              
       double precision :: dumd                                                  
-      logical :: auto_blking, ok, display, auto_domains                         
+      logical :: auto_blking, ok, display
       logical, external :: matchs, integr, endcrd                               
       character :: dums*1, item*80                                              
 c                                                                               
@@ -38,38 +41,28 @@ c                       continue with input.
 c                                                                               
       if( sbflg1 ) call errmsg(43,dum,dums,dumr,dumd)                           
 c                                                                               
-c                       initialize blocking data structures.                    
+c                       initialize blocking data structures.        
+c                       domain decomposition *deprecated*            
 c                                                                               
       nelblk = 0                  
-      mxnmbl = noelem/128 + 1   ! starting size
+      mxnmbl = noelem/128 + 1   ! starting size of table
       call mem_allocate( 17 )
 c                                              
       do i = 1, mxnmbl                                                          
          elblks(0,i) = 0   ! number elements in block                           
          elblks(1,i) = 0   ! first element in block                             
-         elblks(2,i) = 0   ! optional domain  number for element                
+         elblks(2,i) = 0   ! <available>
          elblks(3,i) = -1  ! doesn't seem to be used elsewhere                  
       end do                                                                    
-c                                                                               
-      if( numprocs == 1 ) then ! threads only, or mpi 1 domain                                
-         do i = 1, mxnmbl                                                       
-            elblks(2,i) = 0                                                     
-         end do                                                                 
-      else                                                       
-         do i = 1, mxnmbl                                                       
-            elblks(2,i) = -1                                                    
-         end do                                                                 
-      end if                                                                    
-c                                                                               
+c
       auto_size    = mxvl  !  from param_def                                    
       auto_blking  = .false.                                                    
       display      = .false.                                                    
-      auto_domains = .false.                                                    
 c                                                                               
       if( endcrd(dumr) ) then ! only word blocking on command                   
          call inelbk_user                                                       
       else                                                                      
-         call inelbk_automatic ! probably automatic blocking/domains            
+         call inelbk_automatic ! probably automatic blocking            
          call inelbk_user ! just in case use  still gives blocking              
       end if                                                                    
 c                                                                               
@@ -122,7 +115,8 @@ c     *      contains:   inelblk_user                                *
 c     *                                                              *          
 c     ****************************************************************          
 c                                                                               
-      subroutine inelbk_user                                                    
+      subroutine inelbk_user  
+c                                                              
       implicit none                                                             
 c                                                                               
       do while ( .true. )                                                       
@@ -169,22 +163,7 @@ c
          call errmsg(159,dum,dums,dumr,dumd)                                    
          cycle                                                                  
       end if                                                                    
-c                                                                               
-c                      if present, read in processor assignment                 
-c                      for given block.                                         
-c                                                                               
-      if( integr(proc) ) then                                                   
-         if( proc .lt. 0 ) then                                                 
-            call errmsg( 294, dum, dums, dumr, dumd )                           
-            proc = 0                                                            
-         end if                                                                 
-         if( use_mpi ) then                                                     
-            elblks(2,blk)= proc                                                 
-         else                                                                   
-            elblks(2,blk)= 0                                                    
-         end if                                                                 
-      end if                                                                    
-c                                                                               
+c                                                                                                                                                              
 c                      set the appropriate block data structures.               
 c                                                                               
       elblks(0,blk) = span                                                      
@@ -205,12 +184,12 @@ c     *      contains:   inelblk_automatic                           *
 c     *                                                              *          
 c     ****************************************************************          
 c                                                                               
-      subroutine inelbk_automatic                                               
+      subroutine inelbk_automatic         
+c                                                  
       implicit none                                                             
 c                                                                               
       if( matchs( 'automatic',4) ) then                                         
          auto_blking = .true.                                                   
-         if( use_mpi ) auto_domains = .true.                                    
       else                                                                      
           write(out,9040)  ! unknown blocking option                            
           return                                                                
@@ -234,7 +213,6 @@ c
 c                                                                               
 c              scan optional words to maintain compatibility                    
 c                                                                               
-      if( matchs('domains',4) ) call splunj                                     
       if( matchs('automatic',4) ) call splunj                                   
 c                                                                               
       if( matchs('display',4) ) then                                            
@@ -249,9 +227,9 @@ c
 c                                                                               
       if( matchs('display',4) ) display = .true.                                
 c                                                                               
-c                      do auto blocking and optionally domains                  
+c                      do auto blocking 
 c                                                                               
-      call inelbk_simple_blocking( auto_size, auto_domains, display )           
+      call inelbk_simple_blocking( auto_size, display )           
 c                                                                               
       return                                                                    
 c                                                                               
@@ -271,36 +249,35 @@ c     *          subroutine inelbk_simple_blocking                   *
 c     *                                                              *          
 c     *                       written by : rhd                       *          
 c     *                                                              *          
-c     *             last modified : 2/27/2017 rhd                    *          
+c     *             last modified : 11/16/2025 rhd                   *          
 c     *                                                              *          
 c     *     automatic generation of element blocking: simple version *          
-c     *     for threaded w/o vectorized blocking. optional           *          
-c     *     assignment of blocks to domains w/ simple algorithm      *          
+c     *     for threaded w/o vectorized blocking.                    *
 c     *                                                              *          
 c     ****************************************************************          
 c                                                                               
-      subroutine inelbk_simple_blocking( auto_size, auto_domains,               
-     &                                   display )                              
-      use global_data ! old common.main
-      implicit none                                                             
-      integer :: auto_size, auto_num_domains                                    
-      logical :: auto_domains, display                                          
+      subroutine inelbk_simple_blocking( auto_size, display )   
+c                                       
+      use global_data, only : nelblk, elblks, noelem, iprops, out,
+     &                        mxnmbl, lprops 
+c
+      implicit none   
+c                                                              
+      integer :: auto_size                                  
+      logical :: display                                          
 c                                                                               
 c                     locals also visible by contains                           
 c                                                                               
       logical :: geonon, bbar, cohesive, cyclic_plasticity,                     
-     &           umat,                                                          
-     &           blk_geonon, blk_bbar, blk_cohesive,                            
+     &           umat, blk_geonon, blk_bbar, blk_cohesive,                            
      &           blk_cyclic_plasticity, blk_umat,                               
      &           newblk, compatible, blk_dmg, dmg                               
 c                                                                               
       integer ::  blk_matmodel, matmodel, blk_eletype, eletype,                 
      &            blk_intord, intord, blk_intnum, intnum, i,                    
      &            blk_matnum, matnum, current_size, felem,                      
-     &            element,idomain, hblk, lblk, blks_per_domain,         
-     &            blk, domain                                                   
-      integer ::  counts_blks_ea_domain(0:max_procs-1,2)                        
-c
+     &            element, hblk, lblk, blk 
+c                                                      
 c                     first generation of automatic assignment of               
 c                     elements to blocks.                                       
 c                                                                               
@@ -345,7 +322,7 @@ c
          if( .not. newblk ) then                                                
            elblks(0,nelblk)  = current_size                                     
            cycle                                                                
-         endif                                                                  
+         end if                                                                  
          nelblk = nelblk + 1                                                    
          if( nelblk .gt. mxnmbl ) then                                          
             call inelbk_resize                                                      
@@ -355,42 +332,9 @@ c            call die_abort
          felem             = element                                            
          elblks(1,nelblk)  = felem                                              
          elblks(0,nelblk)  = 1                                                  
-         current_size       = 1                                                 
+         current_size      = 1                                                 
          call inelbk_load_block_props( felem )                                  
       end do ! on element                                                       
-c                                                                               
-c                     simplest assignment of blocks to domains using
-c                     round-robin.             
-c                     probably works well if user optimized element             
-c                     number in code like Patran                                
-c      
-                                                                       
-      if( auto_domains ) then     
-        if( .not. use_mpi ) then
-           elblks(2,:) = 0
-        else
-          auto_num_domains = 0
-          do i = 1, nelblk
-            elblks(2,i) = auto_num_domains
-            auto_num_domains = auto_num_domains + 1
-            if( auto_num_domains + 1 > numprocs ) auto_num_domains = 0
-          end do
-        end if
-      end if
-! 
-!                   old algorithm: discontinued Feb 16, 2022
-!
-!        auto_num_domains = 1                                                    
-!        if( use_mpi ) auto_num_domains = numprocs                               
-!        lblk = 1                                                                
-!        blks_per_domain = real(nelblk) / real(auto_num_domains) + 1.0                             
-!        do idomain = 1, auto_num_domains                                        
-!          hblk = min( nelblk, idomain * blks_per_domain )                       
-!          if( idomain .eq. auto_num_domains ) hblk = nelblk                     
-!          elblks(2,lblk:hblk) = idomain - 1                                     
-!          lblk = hblk + 1                                                       
-!        end do                                                                  
-!      end if                                                                    
 c                                                                               
 c                     display blocking table if requested                       
 c                                                                               
@@ -398,24 +342,7 @@ c
       write(out,9000) nelblk, auto_size                                         
       write(out,9010)                                                           
       do i = 1, nelblk                                                          
-        write(out,9020) i, elblks(1,i),  elblks(0,i), elblks(2,i)               
-      end do                                                                    
-      write(out,*) ' '                                                          
-c                                                                               
-      if( .not. use_mpi ) return                                                
-      counts_blks_ea_domain = 0                              
-      do blk = 1, nelblk                                                        
-       domain = elblks(2,blk)                                                   
-       counts_blks_ea_domain(domain,1) =                                        
-     &        counts_blks_ea_domain(domain,1) + 1                               
-       counts_blks_ea_domain(domain,2) =                                        
-     &        counts_blks_ea_domain(domain,2) + elblks(0,blk)                
-      end do                                                                    
-      write(out,9030)                                                           
-      write(out,9040)                                                           
-      do i = 0, numprocs-1                                                      
-        write(out,9050)  i, counts_blks_ea_domain(i,1),                         
-     &                   counts_blks_ea_domain(i,2)                             
+        write(out,9020) i, elblks(1,i),  elblks(0,i)              
       end do                                                                    
       write(out,*) ' '                                                          
 c                                                                               
@@ -424,14 +351,9 @@ c
  9000 format(/,'>> Generated element blocking table:',                          
      & /,      1x,'  number of blocks, target size: ',i7,i5)                    
  9010 format(/,5x,                                                              
-     &'block        1st element in blk        # elements in block',             
-     &5x,'assigned domain' )                                                    
- 9020 format(1x,i8, 10x,i9,25x,i4,10x,i6)                                       
- 9030 format(/,'>> Domain statistics:')                                         
- 9040 format(/,5x,'domain     # element blks    total # elements' )             
- 9050 format(5x,i6,8x,i6,13x,i10)                                                
-                                                                                
-                                                                                
+     &'block        1st element in blk        # elements in block')
+ 9020 format(1x,i8, 10x,i9,25x,i4)                                       
+c                                                                                
       contains                                                                  
 c     ========                                                                  
                                                                                 
@@ -442,8 +364,10 @@ c *                                                                  *
 c ********************************************************************          
 c                                                                               
 c                                                                               
-      subroutine inelbk_load_block_props( now_elem )                            
-      implicit none                                                             
+      subroutine inelbk_load_block_props( now_elem )  
+c                                      
+      implicit none
+c                                                                   
       integer :: now_elem                                                       
 c                                                                               
       blk_matmodel  = iprops(25,now_elem)                                       
@@ -468,8 +392,10 @@ c *                                                                  *
 c ********************************************************************          
 c                                                                               
 c                                                                               
-      subroutine inelbk_load_elem_props( now_elem )                             
-      implicit none                                                             
+      subroutine inelbk_load_elem_props( now_elem )     
+c                                    
+      implicit none    
+c                                                               
       integer :: now_elem                                                       
 c                                                                               
       matmodel  = iprops(25,now_elem)                                           
@@ -494,9 +420,11 @@ c *                                                                  *
 c ********************************************************************          
 c                                                                               
 c                                                                               
-      subroutine inelbk_chk_match( match )                                      
-      implicit none                                                             
-      logical match                                                             
+      subroutine inelbk_chk_match( match )  
+c                                                
+      implicit none  
+c                                                                 
+      logical :: match                                                             
 c                                                                               
       match = .true.                                                            
 c                                                                               
@@ -555,7 +483,7 @@ c     *                   subroutine inelbk_resize                   *
 c     *                                                              *          
 c     *                       written by : rhd                       *          
 c     *                                                              *          
-c     *                   last modified : 11/26/2018 rhd             *          
+c     *                   last modified : 11/16/2025 rhd             *          
 c     *                                                              *          
 c     *               increase size of blocking table                *          
 c     *                                                              *          
@@ -563,7 +491,9 @@ c     ****************************************************************
 c                                                                               
 c                                                                               
       subroutine inelbk_resize
-      use global_data ! old common.main
+c            
+      use global_data, only : mxnmbl, out, elblks
+c
       implicit none                                                             
 c
 c               current size is mxnmbl. reallocate to 1.x * current
@@ -588,12 +518,6 @@ c
          new_elblks(2,i) = 0   ! optional domain  number for element                
          new_elblks(3,i) = -1  ! doesn't seem to be used elsewhere     
       end do 
-
-      if( numprocs > 1 ) then  ! mpi w/ domains used                               
-         do i = 1, mxnmbl + 1, new_mxnmbl                                                       
-            new_elblks(2,i) = -1                                                    
-         end do                                                                 
-      end if                                                                    
 c
       if( local_debug ) write(out,*) '... moving allocation'
       call move_alloc( new_elblks, elblks )
