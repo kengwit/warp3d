@@ -133,7 +133,7 @@ c
 c                       calculate the extended (long) values of
 c                       stress/strain for each element                                 
 c                                                                               
-         call ouext2( elem_results, mxvl, span, do_stress )                        
+         call ouext2( elem_results(1,1), mxvl, span, do_stress )                        
 c                                                                               
 c                       output the element results for block                            
 c                       to a file compatable with patran or our flat

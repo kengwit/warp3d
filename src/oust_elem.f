@@ -4,7 +4,7 @@ c     *                      subroutine oust_elem                    *
 c     *                                                              *
 c     *                       written by : kck                       *
 c     *                                                              *
-c     *                   last modified : 9/19/2025 rhd              *
+c     *                   last modified : 1/7/26 rhd                 *
 c     *                                                              *
 c     *     output element (center) stress or strain results         *
 c     *     to (1) patran file in either binary or formatted forms   *
@@ -19,8 +19,8 @@ c
      &                      felem, last_block, flat_file,
      &                      stream_file, text_file, compressed )
 c     
-      use global_data, only : ltmstp, myid, out, use_mpi, stname,
-     &                        lsldnm, noelem     
+      use global_data, only : ltmstp, myid, out, stname, lsldnm,
+     &                        noelem     
       implicit none
 c
       integer :: num_vals, nrowd, nrow, felem
@@ -52,7 +52,7 @@ c                       close patran file(s) or flat file
 c
       if( last_block ) then
         call ouocst_elem( data_type, ltmstp, oubin, ouasc, fileno, 2,
-     &                    use_mpi, myid, flat_file,
+     &                    flat_file, 
      &                    stream_file, text_file, compressed,
      &                    flat_file_number, dummy_char )
         return
@@ -82,7 +82,7 @@ c
           call die_abort
         end if
         call ouocst_elem( data_type, ltmstp, oubin, ouasc, fileno, 1,
-     &                    use_mpi, myid, flat_file,
+     &                    flat_file,
      &                    stream_file, text_file, compressed,
      &                    flat_file_number, dummy_char )
 c
@@ -94,11 +94,6 @@ c
           if( stress ) quantity = 2
           call ouddpa_flat_header( 3, quantity, fileno, num_vals,
      &                             '(30e15.6)' )
-        end if
-c
-        if( use_mpi .and. flat_file ) then
-          if( text_file )   write(fileno,*) "  ", num_vals
-          if( stream_file ) write(fileno) num_vals
         end if
 c
       end if ! on first_block test
@@ -132,23 +127,14 @@ c
       if( flat_file .and. stream_file  ) then
          do relelem = 1, nrow
            elem = felem + relelem - 1
-           if( use_mpi ) then
-             write(fileno) elem, elem_values(relelem,1:num_vals)
-           else
-             write(fileno) elem_values(relelem,1:num_vals)
-           end if
+           write(fileno) elem_values(relelem,1:num_vals)
          end do
       end if
 c
       if( flat_file .and. text_file ) then
          do relelem = 1, nrow
            elem = felem + relelem - 1
-           if( use_mpi ) then
-             write(fileno,9100) elem,
-     &                          elem_values(relelem,1:num_vals)
-           else
-             write(fileno,9200) elem_values(relelem,1:num_vals)
-           end if
+           write(fileno,9200) elem_values(relelem,1:num_vals)
          end do
       end if
 c
@@ -209,7 +195,6 @@ c
        write(fileno) titl,num_vals
        write(fileno) titl1
        write(fileno) titl1
-       if ( use_mpi ) write(fileno) noelem
       end if
 c
       if( patran_file .and. ouasc ) then
@@ -217,7 +202,6 @@ c
        write(fileno,915) num_vals
        write(fileno,900) titl1
        write(fileno,900) titl1
-       if ( use_mpi ) write(fileno,916) noelem
       end if
 c
       return

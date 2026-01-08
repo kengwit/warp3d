@@ -22,7 +22,8 @@ c
       logical :: do_stresses
 c      
       logical :: do_strains      
-      integer :: prin_col, evec_col                                              
+      integer :: prin_col, evec_col    
+      logical, parameter :: local_debug = .false.                                          
 c  
 c              numele is number of elements in block. 
 c              this routines also used to compute values
@@ -38,7 +39,13 @@ c
       call get_princ_vals_ext( num_elems_nodes, nrowd, values, 
      &                     values(1,prin_col),
      &                     values(1,evec_col), do_stresses )
-c                                                                                         
+c              
+      if( local_debug ) then
+         write(*,*) "..... inside ouext2 ....." 
+         write(*,*) "      nrowd, num_elems_nodes, do_stresses: ",
+     &            nrowd, num_elems_nodes, do_stresses
+         write(*,*) "      prin_col, evec_col: ",prin_col, evec_col     
+      end if                                                                 
       if( do_stresses ) then      
          call ouext2_get_mises( values, nrowd, num_elems_nodes )                           
          call ouext2_get_Lode_parms( values, nrowd, num_elems_nodes )
@@ -62,7 +69,7 @@ c     *                   subroutine ouext2_get_mises                *
 c     *                                                              *          
 c     *                       written by : kck                       *          
 c     *                                                              *          
-c     *                   last modified : 9/18/2025 rhd              *          
+c     *                   last modified : 12/17/25 rhd               *          
 c     *                                                              *          
 c     *                    mises equivalent stress                   *          
 c     *                                                              *          
@@ -76,7 +83,7 @@ c
       implicit none
 c
       integer :: nrowd, count
-      double precision :: stresses(nrowd,count)
+      double precision :: stresses(nrowd,*)
 c
       integer :: i
       double precision :: xx, yy, zz, xy, yz, xz                                            
@@ -102,7 +109,7 @@ c     *           subroutine ouext2_get_equiv_strain                 *
 c     *                                                              *          
 c     *                       written by : kck                       *          
 c     *                                                              *          
-c     *                   last modified : 9/18/2025 rhd              *          
+c     *                   last modified : 12/17/25 rhd               *          
 c     *                                                              *          
 c     *                 total equivalent strain measure              *          
 c     *                                                              *          
@@ -116,7 +123,7 @@ c
       implicit none  
 c                                                  
       integer :: nrowd, count
-      double precision :: strains(nrowd,count)
+      double precision :: strains(nrowd,*)
 c
       integer :: i
       double precision :: exx, eyy, ezz, gamxy, gamyz, gamxz                       
@@ -146,7 +153,7 @@ c     *               subroutine ouext2_get_strain_invariants        *
 c     *                                                              *          
 c     *                       written by : kck                       *          
 c     *                                                              *          
-c     *                   last modified : 9/18/2025 rhd              *          
+c     *                   last modified : 12/17/25 rhd               *          
 c     *                                                              *          
 c     *                         strain invariants                    *          
 c     *                                                              *          
@@ -160,7 +167,7 @@ c
       implicit none
 c
       integer :: nrowd, count
-      double precision :: strains(nrowd,count)
+      double precision :: strains(nrowd,*)
 c
 c                    locals                                          
 c         
@@ -186,7 +193,7 @@ c     *              subroutine ouext2_get_Lode_parms                *
 c     *                                                              *          
 c     *                       written by : rhd                       *          
 c     *                                                              *          
-c     *                   last modified : 9/18/2025 rhd              *          
+c     *                   last modified : 12/17/25 rhd               *          
 c     *                                                              *          
 c     *     mean stress, triaxiality, Lode parameter (-1<=L<=1)      *
 c     *                                                              *          
@@ -200,7 +207,7 @@ c
       implicit none
 c
       integer :: nrowd, count
-      double precision :: stresses(nrowd,count)
+      double precision :: stresses(nrowd,*)
 c
       integer :: i 
       double precision :: sig1, sig2, sig3, mean, mises, triaxiality,

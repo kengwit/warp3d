@@ -21,7 +21,8 @@ c
       include 'param_def'                                                       
 c                                                                               
       integer :: span, num_strain, num_stress, nrowd                            
-      logical :: do_stresses                                                    
+      logical :: do_stresses
+      logical, parameter :: local_debug = .false.                                                    
       double precision :: elem_results(nrowd,*)                                 
 c                                                                               
       integer :: num_vals, k, i                                                 
@@ -31,7 +32,15 @@ c                       data structure for element center results.
 c                                                                               
       num_vals = num_strain                                                     
       if( do_stresses ) num_vals = num_stress   
-c                                                                               
+c           
+      if( local_debug ) then
+        write(*,*) ".... inside oupele"     
+        write(*,*) "       span, num_strain, num_stress: ",  span, 
+     &                num_strain, num_stress                                                      
+        write(*,*) "       do_stresses, nrowd: ",  do_stresses, nrowd
+        write(*,*) "       num_vals: ", num_vals
+       endif
+c        
       do k = 1, num_vals                                                        
 !$omp simd
         do i = 1, span                                                          

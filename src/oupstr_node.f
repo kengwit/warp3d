@@ -26,7 +26,7 @@ c     *                      subroutine oupstr_node                  *
 c     *                                                              *          
 c     *                       written by : bh                        *          
 c     *                                                              *          
-c     *                   last modified : 9/18/2025 rhd              *          
+c     *                   last modified : 1/7/26 rhd                 *          
 c     *                                                              *          
 c     *     drives output of stress or strain nodal results to       *          
 c     *     (1) patran files in either binary or formatted forms or  *          
@@ -38,13 +38,13 @@ c
       subroutine oupstr_node( do_stress, oubin, ouasc, flat_file,                  
      &                        stream_file, text_file, compressed )               
 c
-      use global_data, only : nonode, nelblk, myid, iprops, lprops,
-     &                        outmap, use_mpi, numprocs, mxelmp,
-     &                        out, elblks
+      use global_data, only : nonode, nelblk, iprops, lprops,
+     &                        outmap, mxelmp, out, elblks
       use local_oupstr_node, only : nodal_values
       use main_data, only : incmap, incid, cohesive_ele_types                   
       use output_value_indexes, only : num_short_strain, 
      &            num_short_stress, num_long_strain, num_long_stress
+      use constants, only : zero
 c
       implicit none
 c      
@@ -52,16 +52,14 @@ c
      &           stream_file, text_file, compressed                                
 c                                                                               
 c                local declarations                                             
-c                                                                               
+c  
       logical :: bbar_flg, geo_non_flg, long_out_flg, nodpts_flg,                 
-     &           center_output, cohesive_elem, do_average, 
-     &           threads_only, do_strains, is_cohesive                
+     &           center_output, cohesive_elem, do_strains, is_cohesive                
       integer  :: iblk, node, blk, span, felem, elem_type,  
      &            int_order, mat_type, num_enodes, num_enode_dof,
      &            totdof, num_vals, ifelem, count,num_int_points,
      &            output_loc, ierror   
       integer :: elem_out_map(mxelmp) ! mxelmp in global_data
-      double precision, parameter :: zero = 0.0d0
 c                                                                               
 c                data structure for averaged nodal results. vector              
 c                of derived types. global vector allocated for all              
@@ -86,7 +84,6 @@ c                       nodal results for each element block
 c                                                                               
       do blk = 1, nelblk                                                        
 c                                                                               
-         if( elblks(2,blk) .ne. myid ) cycle                                   
          span              = elblks(0,blk)                                      
          felem             = elblks(1,blk)                                      
          elem_type         = iprops(1,felem)                                    
@@ -136,8 +133,7 @@ c
 c                                                                               
       end do 
 c
-c                       for threads only processing and/or mpi with just              
-c                       one process, average the total results at               
+c                       average the total results at               
 c                       each node, using node count for the model.              
 c                       then calculate the extended values of stress            
 c                       and strain at each node in the model.                   
@@ -146,27 +142,13 @@ c                       we can have nodes with only interface-cohesive
 c                       elements attached. make sure they have a vector         
 c                       of zero values to write in the file.                    
 c                                                                               
-c                       for multi-process mpi jobs, we just write               
-c                       the summed results + the node count to the              
-c                       simplified result file (for the domain).                
-c                                                                               
-c                       the external program to combine mpi result              
-c                       files handles nodes with missing values.                
-c                                                                               
-c                                                                               
-      threads_only = .not. use_mpi                                                    
-      do_average =  threads_only .or. (use_mpi .and. numprocs .eq. 1)    
-      if( do_average ) call oupstr_node_do_average
+      call oupstr_node_do_average
 c                                                                               
 c                       output the averaged total nodal results                 
 c                       to a (1) file compatable with patran for post           
 c                       processing in binary or formatted file type             
 c                       or (2) flat file in text or stream types.               
 c                                                                               
-c                       only results for nodes that appear in this              
-c                       domain are written. see notes                           
-c                       above for values actually written.                      
-c                                                                                
       call oustpa( do_stress, oubin, ouasc, num_vals, 
      &             nonode, flat_file, stream_file, text_file,                   
      &             compressed )                                                 
@@ -274,7 +256,7 @@ c     *                      subroutine oustpa                       *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 8/5/25 rhd                 *
+c     *                   last modified : 1/7/26 rhd                 *
 c     *                                                              *
 c     *     output stress or strain nodal results to (1) patran file *
 c     *     in either binary or formatted forms, or (2) flat file    *
@@ -287,8 +269,7 @@ c
      &                   num_struct_nodes, flat_file,
      &                   stream_file, text_file, compressed )
 c
-      use global_data, only : ltmstp, out, use_mpi, myid, numprocs,
-     &                        stname, lsldnm, nonode 
+      use global_data, only : ltmstp, out, stname, lsldnm, nonode 
       use local_oupstr_node, only : nodal_values
       implicit none
 c
@@ -313,7 +294,7 @@ c
 c                       open Patran or flat files
 c
       call ouocst( stress, stepno, oubin, ouasc, bnfile, fmfile, 1,
-     &             out, use_mpi, myid, flat_file, stream_file,
+     &             out, flat_file, stream_file,
      &             text_file, compressed, flat_file_number )
 c
 c                        set Patran title records.
@@ -337,7 +318,7 @@ c
 c
       if( patran_file ) then  ! close and leave
          call ouocst( stress, stepno, oubin, ouasc, bnfile, fmfile,
-     &                2, out, use_mpi, myid, flat_file, stream_file,
+     &                2, out, flat_file, stream_file,
      &                text_file, compressed, flat_file_number )
          return
       end if
@@ -356,16 +337,12 @@ c
      &                           num_vals, '(30e15.6)' )
       end if
 c
-      if( use_mpi .and. numprocs > 1 ) then
-         call oustpa_4
-       else    !  just threaded or mpi w/ num_procs = 1
-         call oustpa_5
-      end if
+      call oustpa_5
 c
 c                       close flat file
 c
       call ouocst( stress, stepno, oubin, ouasc, bnfile, fmfile, 2,
-     &             out, use_mpi, myid, flat_file, stream_file, 
+     &             out, flat_file, stream_file, 
      &             text_file, compressed, flat_file_number )
 c
       return
@@ -425,12 +402,7 @@ c
       do snode = 1, nonode
         if( nodal_values(snode)%count .eq. 0 ) cycle
         associate( x = > nodal_values(snode)%node_values )
-        if( use_mpi .and. numprocs > 1 ) then
-            write(bnfile) snode, nodal_values(snode)%count,
-     &                    x(1:num_vals)
-        else
-            write(bnfile) snode, (sngl(x(i)),i=1,num_vals)
-        end if
+        write(bnfile) snode, (sngl(x(i)),i=1,num_vals)
       end associate
       end do
 c
@@ -457,12 +429,7 @@ c
        if( nodal_values(snode)%count .eq. 0 ) cycle
        associate( x = > nodal_values(snode)%node_values )
        where( abs(x) .lt. small_tol ) x = zero
-       if( use_mpi .and. numprocs > 1 ) then
-         write(fmfile,930) snode, nodal_values(snode)%count
-         write(fmfile,940) x(1:num_vals)
-       else
-         write(fmfile,920) snode, x(1:num_vals)
-       end if
+       write(fmfile,920) snode, x(1:num_vals)
        end associate
       end do
 c
@@ -474,32 +441,7 @@ c
  940  format(e23.15)
 c
       end subroutine oustpa_3
-
-      subroutine oustpa_4
-c     -------------------
 c
-      implicit none
-
-       if( stream_file ) write(flat_file_number) num_vals
-       if( text_file ) write(flat_file_number,*) "  ", num_vals
-c
-       do snode = 1, nonode
-         if( nodal_values(snode)%count .eq. 0 ) cycle
-         associate( x = > nodal_values(snode)%node_values )
-         where( abs(x) .lt. small_tol ) x = zero
-         if( stream_file ) write(flat_file_number) snode,
-     &             nodal_values(snode)%count, x(1:num_vals)
-         if( text_file ) write(flat_file_number,9100) snode,
-     &             nodal_values(snode)%count, x(1:num_vals)
-         end associate
-       end do
-c
-      return
-c
- 9100 format(2i9,30d15.6)
-c
-      end subroutine oustpa_4
-
       subroutine oustpa_5
 c     -------------------
 c

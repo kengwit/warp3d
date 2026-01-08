@@ -4,7 +4,7 @@ c     *                      subroutine ouocdd                       *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 1/11/2018 rhd              *
+c     *                   last modified : 1/6/26 rhd                 *
 c     *                                                              *
 c     *     handle file open/close for Patran and flat file results  *
 c     *     make file name based on load step, results type, etc.    *
@@ -17,15 +17,15 @@ c
 c
 c
       subroutine ouocdd( dva, ltmstp, oubin, ouasc, bnfile, fmfile,
-     &                   opt, use_mpi, myid, flat_file, stream_file,
+     &                   opt, flat_file, stream_file,
      &                   text_file, compressed, flat_file_number )
       implicit none
 c
 c              parameters
 c
-      integer :: dva, ltmstp, opt, myid, bnfile, fmfile,
+      integer :: dva, ltmstp, opt, bnfile, fmfile,
      &           flat_file_number
-      logical :: oubin, ouasc, use_mpi, flat_file,
+      logical :: oubin, ouasc, flat_file,
      &           stream_file, text_file, compressed
 c
 c              locals
@@ -84,7 +84,7 @@ c
 c
 c                       patran result files. ltmstp is step number
 c
-c                         wn(b)(f) +    X     + step no + .MPI rank
+c                         wn(b)(f) +    X     + step no 
 c                         char*3      char*1      i7.7     a1, i4.4
 c
 c                        X = d, v, a, r, t
@@ -94,14 +94,14 @@ c
         strtnm = slist(dva)
         if( oubin ) then
           strtnm(3:3) = "b"
-          call ouflnm( strtnm, bflnam, step_number, use_mpi, myid )
+          call ouflnm( strtnm, bflnam, step_number )
           bnfile = 98
           open(bnfile,file=bflnam,status='unknown',
      &         access='sequential',form='unformatted',recl=350 )
         end if
         if( ouasc)  then
           strtnm(3:3) = "f"
-          call ouflnm( strtnm, fflnam, step_number, use_mpi, myid )
+          call ouflnm( strtnm, fflnam, step_number )
           fmfile = 99
           open(fmfile,file=fflnam,status='unknown',
      &         access='sequential',form='formatted',recl=350 )
@@ -110,11 +110,11 @@ c
       end if
 c
 c                       flat result files. name structure
-c                        wnX + step # + _text   + .MPI rank
-c                        wnX + step # + _stream + .MPI rank
-c                               i7.7             a1,  i4.4
-c                                       11-15     16-20
-c                        1-3    4-10    11-17     18-22
+c                        wnX + step # + _text  
+c                        wnX + step # + _stream
+c                               i7.7             
+c                                       11-15    
+c                        1-3    4-10    11-17    
 c                        where X is d, v, a, r, t
 c
       flat_file_number = warp3d_get_device_number()
@@ -126,10 +126,6 @@ c
 c
       if( stream_file ) then
         flat_name(11:) = '_stream'
-        if( use_mpi ) then
-          flat_name(18:18) = "."
-          write(flat_name(19:),9100) myid
-        end if
         open( unit=flat_file_number, file=flat_name, status='unknown',
      &        access='stream', form='unformatted' )
         return
@@ -137,10 +133,6 @@ c
 c
       if( text_file ) then
         flat_name(11:) = '_text'
-        if( use_mpi ) then
-          flat_name(16:16) = "."
-          write(flat_name(17:),9100) myid
-        end if
         open( unit=flat_file_number, file=flat_name, status='unknown',
      &        access='sequential', form='formatted' )
         return

@@ -4,7 +4,7 @@ c     *                      subroutine ouddpa                       *
 c     *                                                              *
 c     *                       written by : bh                        *
 c     *                                                              *
-c     *                   last modified : 1/31/2019 rhd              *
+c     *                   last modified : 1/7/26 rhd                 *
 c     *                                                              *
 c     *     write nodal displacements, velocities, accelerations,    *
 c     *     reactions, temperatures to (1) patran file in            *
@@ -23,6 +23,8 @@ c
       use main_data, only : trn, trnmat, mdiag, pbar, rload,
      &                      inverse_incidences, temper_nodes,
      &                      temper_nodes_ref
+c
+      use constants, only : one     
       implicit none
 c
       integer :: dva, nodmax, nwidth
@@ -37,11 +39,10 @@ c
       integer :: titl(80), titl1(80)
       double precision, allocatable :: edva(:,:), trnmte(:,:,:)
       double precision :: nfac
-      double precision, parameter :: one = 1.0d0
       real :: sgl_defmax, sgl_vals(10)
       logical :: patran_file
       logical, allocatable :: trne(:,:)
-
+c
       character(len=4) :: title(80), title1(80)
       character(len=80) :: string, strng1, stepstring*7
       equivalence (title,titl), (title1,titl1)
@@ -62,7 +63,7 @@ c
 c
       step_num = ltmstp
       call ouocdd( dva, step_num, oubin, ouasc, bnfile, fmfile, 1,
-     &             .false., myid, flat_file, stream_file, text_file,
+     &             flat_file, stream_file, text_file,
      &             compressed, flat_file_number )
 c
 c                        writing of patran file(s) and flat files
@@ -146,7 +147,7 @@ c
 c                       close patran or flat file. done.
 c
       call ouocdd( dva, ltmstp, oubin, ouasc, bnfile, fmfile, 2,
-     &             .false., myid, flat_file, stream_file, text_file,
+     &             flat_file, stream_file, text_file,
      &             compressed, flat_file_number )
 c
       return

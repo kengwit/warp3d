@@ -4,7 +4,7 @@ c     *                      subroutine ouocst_elem                  *
 c     *                                                              *
 c     *                       written by : kck                       *
 c     *                                                              *
-c     *                   last modified : 1/11/2017 rhd              *
+c     *                   last modified : 1/7/26 rhd                 *
 c     *                                                              *
 c     *     this subroutine opens or closes files for (1) Patran     *
 c     *     binary or formatted output, or (2) flat file with        *
@@ -14,17 +14,16 @@ c     ****************************************************************
 c
 c
       subroutine ouocst_elem( data_type, stepno, oubin, ouasc, fileno,
-     &                        opt, use_mpi, myid, flat_file,
+     &                        opt, flat_file,
      &                        stream_file, text_file, compressed,
      &                        flat_file_number, matl_name_id  )
       implicit none
 c
 c                       parameters
 c
-      integer :: data_type, stepno, fileno, opt,  myid,
-     &           flat_file_number, dot_pos
-      logical :: oubin, ouasc, use_mpi,
-     &           flat_file, stream_file, text_file, compressed
+      integer :: data_type, stepno, fileno, opt, flat_file_number
+      logical :: oubin, ouasc, flat_file, stream_file, text_file,
+     &           compressed
       character(len=*) :: matl_name_id
 c
 c                       locals
@@ -121,12 +120,6 @@ c
       if( data_type .eq. 3 .and. matl_name_id(1:1) .ne. " " )
      &     patran_file_name(12:) = "_" // matl_name_id(1:)
 c
-      if( use_mpi ) then
-         dot_pos = len_trim( patran_file_name ) + 1
-         patran_file_name(dot_pos:dot_pos) = "."
-         write(patran_file_name(dot_pos+1:),9010) myid
-      end if
-c
       open(unit=fileno,file=patran_file_name,status='unknown',
      &     access='sequential', form=form_type )
 c
@@ -145,7 +138,7 @@ c
       subroutine ouocst_elem_flat_file
       implicit none
 c
-      integer :: now_len, dot_pos
+      integer :: now_len
       integer, external :: warp3d_get_device_number
 !win      integer, external  :: system
       character :: strtnm*4, form_type*20, access_type*20
@@ -168,11 +161,6 @@ c
             now_len = len_trim( flat_name )
             flat_name(now_len+1:) = "_" // matl_name_id(1:)
          end if
-         if( use_mpi ) then
-           dot_pos = len_trim( flat_name ) + 1
-           flat_name(dot_pos:dot_pos) = "."
-           write(flat_name(dot_pos+1:),9010) myid
-         end if
          access_type = 'sequential'
          form_type   = 'formatted'
       end if
@@ -182,11 +170,6 @@ c
          if( data_type .eq. 3 .and. matl_name_id(1:1) .ne. " " ) then
             now_len = len_trim( flat_name )
             flat_name(now_len+1:) = "_" // matl_name_id(1:)
-         end if
-         if( use_mpi ) then
-           dot_pos = len_trim( flat_name ) + 1
-           flat_name(dot_pos:dot_pos) = "."
-           write(flat_name(dot_pos+1:),9010) myid
          end if
          access_type = 'stream'
          form_type   = 'unformatted'
