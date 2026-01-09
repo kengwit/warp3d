@@ -15,6 +15,7 @@ then
   echo " "
   exit
 fi
+echo  ".... warp3d home directory: " $WARP3D_HOME
 export LD_LIBRARY_PATH=$WARP3D_HOME/linux_packages/lib:$LD_LIBRARY_PATH
 #
 python3 run_tests.py
