@@ -1,0 +1,55 @@
+!
+ material steel
+    properties mises e 30000  nu 0.3 n_power 10 yld_pt 60.0
+!
+ material rve_link
+     properties link stiff_link 1.0e10 mass_link 0.0
+!
+ structure rve_holes
+! 
+ number of nodes 113143  elements 23206
+!
+ elements
+   1-23200 type q3disop linear material steel,
+                       order 9pt_rule center_output short
+  23201-23206  type link2 material rve_link
+! 
+*input from 'test_90b_coords.inp'
+*input from 'test_90b_incid.inp'
+! 
+ blocking automatic size = 128
+! 
+ *echo off
+*input from 'test_90b_constraints.inp'
+*echo off
+! 
+ loading test
+  nonlinear
+    step 1-5 constraint 0.0002
+! 
+ nonlinear analysis parameters
+   solution technique sparse iterative 
+   time step 1.0e06 
+   maximum iterations 5 $ global Newton iterations
+   minimum iterations 2
+   extrapolate on
+   convergence test norm res tol 0.01
+   line search on
+   divergence check on 
+   nonconvergent solutions stop
+   adaptive on   $ global Newton iterations
+   batch messages off
+   wall time limit off
+   material messages off
+   bbar stabilization factor 0.0
+   consistent q-matrix off
+   trace solution on
+   display tied mesh mpcs off
+   user_routine off
+! 
+ output model flat patran convention text file "model"
+!
+ compute displacements for loading test step 5
+ output wide stresses 15406
+!
+stop
