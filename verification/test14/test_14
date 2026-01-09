@@ -35,7 +35,7 @@ c
 c
 *input "coords.inp"
 *input "incid.inp"
- blocking automatic
+ blocking automatic display
 *input "loads.inp"
 c
  constraints
