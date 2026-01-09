@@ -124,6 +124,7 @@ def run_all():
  test_generic( "test87" )
  test_generic( "test88" )
  test_generic( "test89" )
+ test_generic( "test90" )
 #
  time_end = time.time()
  print("  ... Elaspsed walltime: %0.1f" % (time_end-time_start))
@@ -175,7 +176,7 @@ def test_generic( problem_dir ):
 #
 #              get number of problems to solve in this directory
 #              get problem ids, output files, input files
-#
+#``
  line, words = get_new_line( infile )
  num_problems = int(words[0])
 #
@@ -629,8 +630,6 @@ def initialize():
  menu_displayed = False
 #
  return
-
-
 #
 #              function display_menu
 #              ---------------------
@@ -678,6 +677,7 @@ def display_menu():
   m.append( "Test 87: (T-stress. surface cracked plate. face loading)" )
   m.append( "Test 88: (SMCS ductile growth. mesh regularization)" )
   m.append( "Test 89: (SMCS ductile growth. C(T), blunt with hole)" )
+  m.append( "Test 90: (RVEs with periodic boundary conditions)" )
   m.append( "Quit" )
 #
 
@@ -827,6 +827,7 @@ def main():
    if choice == 35: test_generic( "test87" )
    if choice == 36: test_generic( "test88" )
    if choice == 37: test_generic( "test89" )
+   if choice == 38: test_generic( "test90" )
 #
 # ----------------------------------------------------------------------------
 #
