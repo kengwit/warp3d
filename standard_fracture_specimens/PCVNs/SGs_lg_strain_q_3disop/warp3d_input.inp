@@ -92,7 +92,7 @@ c
  order 2x2x2 center_output short 
 c
 *input from 'coordinates.inp'
-*input from 'incid_and_blockinginp'
+*input from 'incid_and_blocking.inp'
 *input from file 'mesh_tieing.inp'
 *input from 'constraints.inp'
 c 
