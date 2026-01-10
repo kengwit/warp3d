@@ -42,10 +42,9 @@ elements
  1-19334  type l3disop  nonlinear material steel,
      order 2x2x2 bbar center_output short
 *input from 'coordinates.inp'
-*input from 'incidences.inp'
-*input from 'constraints.inp'
-c
+*input from 'incidences'
 blocking automatic
+*input from 'constraints.inp'
 c
  loading disp_ctrl
   nonlinear
