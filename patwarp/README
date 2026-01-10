@@ -1,5 +1,6 @@
-Updated January 2020
-====================
+
+Updated November 2025
+=====================
 
 
 Patwarp directory
@@ -8,73 +9,38 @@ Patwarp directory
 In this directory are the source code and compile scripts (bash
 for Linux and OSX, .bat for Windows) for the patwarp program.
 
-The patwarp program converts patran neutral files into WARP3D input
+The patwarp program converts Patran neutral (text) files into WARP3D input
 files. 
 
-On Linux with MPI execution it also uses the METIS subroutine 
-library to partition a mesh for efficient parallel computation.
+The special Linux version that supported domain decomposition for 
+MPI solutions has been removed.
+
+The Linux version of patwarp is now the same as Windows and Mac.
 
 Files in this directory are:
 
 README -- this file
 
-patwarp_module.f  -- Fortran module for the patwarp source
+compile_patwarp_osx -- script that compiles patwarp for MacOS
+                       Intel processors only. 
 
-compile_patwarp_osx -- script that compiles patwarp for OS X
-
-compile_patwarp_linux -- script that compiles patwarp for Linux (64-bit)
+compile_patwarp_linux -- script that compiles patwarp for Linux 
                          
-patwarp.f -- patwarp source for Linux platforms
+patwarp.f -- patwarp source code all 3 platforms
 
 compile_patwarp_windows.bat --compile script Windows W10
 
-patwarp_windows_mac.f -- patwarp source for Windows and Mac OS X
-                         platforms.
-
-NOTE: Windows and OS X versions of patwarp do not permit
-      mesh partitioning for MPI-based parallel execution,
-      because metis requires a C compiler on PC.
-
-metis-4.0 -- version 4.0 of the metis library.  METIS requires a C
-             compiler, thus is not used on PC or OS X platforms.
-
 Note:
 
-  Building patwarp on Linux requires the Intel Fortran compiler
-  (any version) version later AND the gcc compiler
-
-  Building patwarp on Windows PCs and OS X requires the Intel
-  Fortran compiler (any version).
-
-  The script could be changed to use gfortran on all platforms.
+  Building patwarp on each platform requires the Intel Fortran
+  compiler ifort.  It likely will compile with Intel ifx
+  and gfortran
 
 Running patwarp
 ---------------
 
-** Key change in January 2020. 
-
-    patwarp now assumes the nodes and elements are numbered sequentially.
-    processing is terminated if this condition violated.
- 
-
 patwarp asks questions about the neutral file, output file,
 and other information needed in creating the WARP3D input file.
-
-For MPI execution on Linux, patwarp may find it necessary
-to change the element numbering into a form more suitable for the
-WARP3D data structures.
-
-When this happens, patwarp has options both to print out a
-table of the old to new element numbering and to create a new
-Patran neutral file with the modified numbering.
-
-Also, patwarp on Linux uses the METIS library to partition models
-into domains if requested for MPI-based parallel exectution.
-The METIS software is freely distributable; see details
-in the metis-4.0 directory. Patwarp enables output of patran element
-results files which indicate processor partitioning and blocking.
-This function is not supported on Windows and OSX platforms, where
-METIS is untested and requires a separate C compiler.
 
 More information about running patwarp can be found in the Appendix to
 the WARP3D User Manual.

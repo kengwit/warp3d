@@ -1,15 +1,82 @@
+c *                                                                          *
+c *    Modifications  11/15/2025 rhd                                         *
+c *    Domain decomposition support deprecated.                              * 
+c *                                                                          *
+c ****************************************************************************
 c ****************************************************************************
 c *                                                                          *
-c *     patran-to-warp3d input translation system - Linux version            *
-c *     includes Metis for domain decomposition                              *
-c *                                                                          *
-c ****************************************************************************
-c *                                                                          *
-c *    Modifications  1/5/2021  rhd                                          *
+c *     patran-to-warp input translation system                              *
 c *                                                                          *
 c ****************************************************************************
 c
 c
+      module patwarp_data
+c
+      parameter  ( maxprp = 2000 )
+      parameter  ( maxmtl = 2000 )
+      parameter  ( maxset = 200 )
+      parameter  ( maxcon = 100 )
+      parameter  ( maxtrn = 2000 )
+      parameter  ( maxetp = 5000 )
+      parameter  ( mxnmgp = 30000 )
+      parameter  ( mxnmbl = 2*(8000000/128) )
+      parameter  ( mxblsz = 512 )
+      parameter  ( maxprocs = 10000 )
+      parameter  ( maxaccgrps = 10000 )
+c
+      integer  numnod, numele, nummtl, numprp, intact, maxinc,
+     &         maxadv, maxnls, maxndt, maxnvl, maxeld, maxdld,
+     &         termin, termot, nfile, ofile, cd_file, inbl_file,
+     &         ct_file, ofile_store, comdummy, blksz, nmpc, maxmpc,
+     &         cdf_len, inbl_len, ctf_len, nxtels, numgrp, nelblk,
+     &         two16, nxtnls, nxtndt, msgnod, msgele, nxtnvl,
+     &         eincpt, eadvpt, nxteld, nxtdld, block_method
+
+      integer  ncset(6), ynanswers(9), nlodtb(maxset,5),
+     &         econfg(maxetp), ettypt(maxetp), etty_tail_pt(maxetp),
+     &         elblks(0:mxblsz,mxnmbl), blkproc(mxnmbl),
+     &         grpnum(mxnmgp), grphead(mxnmgp), grptail(mxnmgp)
+c
+      integer, allocatable, dimension (:) :: nodcon, nodndf, nodcfg,
+     &                                       nodcid, nodpcn,
+     &                                       nod_trn_list,
+     &                                       elepid, elecid, eletyp,
+     &                                       elennd, elecfg, eleipt,
+     &                                       elenad, eleadp, eletran,
+     &                                       eletrpoin, elreno, eleord,
+     &                                       elegnl, elem_access,
+     &                                       elreon, eleproc, grplst,
+     &                                       eleinc, eletrinc,
+     &                                       ndcndt, nodval, nodptr,
+     &                                       mpctrm
+c
+      integer, allocatable, dimension (:,:) :: cset, etypls, ndcnls,
+     &                                         eloads, deload,
+     &                                         mpcnod, mpcdof
+c
+      real, allocatable, dimension (:) :: eleadv, rndcndt, rnodval
+c
+      real, allocatable, dimension (:,:) :: eleang
+c
+      double precision, allocatable, dimension (:,:) :: coord, mpcmlt
+c
+      character*8   time
+      character*12  date, versn
+      character*80  neunam, outnam, ordnam, coord_file, const_file,
+     &              incid_block_file, ustitl, elem_print_file,
+     &              nptfle, resfile, prefix_name
+c
+      character*16  etypes(maxetp)
+c
+      character*1, allocatable, dimension (:) :: nodtyp
+c
+      logical  debug, prnode, princi, prcons, prnlod, prntmp, prnmpc,
+     &         prcset, scalar, prdistl, parallel, sep_file_control,
+     &         made_transition
+c
+c
+      end module patwarp_data
+
       program main
 c
       use patwarp_data
@@ -179,6 +246,7 @@ c            packet type 12-13 not currently used by patran
 c
  1012 continue
  1013 continue
+      go to 3000
 c
 c            packet type 14 -- multipoint constraints
 c
@@ -244,7 +312,7 @@ c
       go to 3000
 c
 c            finished reading neutral file with normal condition.
-c            ask which is wanted: finite format or warp3d format
+c            ask which is wanted: warp3d format
 c
  2000 continue
       call trnl
@@ -274,29 +342,24 @@ c
       write(termot,9110)
       stop
 c
-c
  9000 format(/,
      &       ' ****************************************************',
      &  /,   ' *                                                  *',
-     &  /,   ' *                ---  patwarp  ---                 *',
+     &  /,   ' *             ----  patwarp  ---                   *',
      &  /,   ' *                                                  *',
-     &  /,   ' *                     (Linux)                      *',
+     &  /,   ' *            (MacOS, Linux, Windows)               *',
      &  /,   ' *                                                  *',
-     &  /,   ' *   Processes Patran 3 (formatted) Neutral File    *',
-     &  /,   ' *       ( node-element limits removed)             *',
-     &  /,   ' *            Build Date:  1-5-2021                 *',
+     &  /,   ' *     Processes Patran (formatted) Neutral File    *',
+     &  /,   ' *       ( node-element limits removed )            *',
+     &  /,   ' *          Build Date:  11-15-2025                 *',
      &  /,   ' *                                                  *',
      &  /,   ' * includes:                                        *',
      &  /,   ' *  o support for 2 node bar2 and link2 elements    *',
      &  /,   ' *  o support for 8, 9, 12, 15, 20-node hexs        *',
      &  /,   ' *  o support for 4, 10 node tets                   *',
      &  /,   ' *  o support for 6, 15 node wedges                 *',
-     &  /,   ' *  o output of blocking and partitioning info      *',
-     &  /,   ' *       in Patran-readable (element) results files *',
      &  /,   ' *  o tet4 and tet10 elements now supported         *',
      &  /,   ' *  o MPCs defined in Patran model now supported    *',
-     &  /,   ' *  o Domain decomposition using METIS for MPI      *',
-     &  /,   ' *       based, parallel analyses in WARP3D.        *',
      &  /,   ' *                                                  *',
      &  /,   ' ****************************************************'
      &   )
@@ -334,9 +397,9 @@ c             strip leading blanks from string and return it.
 c
       last = len(string)
       copy(1:last) = string(1:last)
-      do 100 cpos = 1, last
+      do cpos = 1, last
        if ( string(cpos:cpos) .ne. ' ' ) go to 200
- 100  continue
+      end do
       return
  200  continue
       string(1:) = copy(cpos:last)
@@ -345,7 +408,7 @@ c
 c
 c ************************************************************************
 c *                                                                      *
-c *   routine  init --  initialize variables for the translator.        *
+c *   routine  init --  initialize variables for the translator.         *
 c *                                                                      *
 c ************************************************************************
 c
@@ -726,10 +789,6 @@ c
       return
 c
 1000  format( a12, a8, a12 )
-1010  format(1x,'>>>> fatal error -- number of nodes: ',i8,
-     &        /,'                    exceeds current limit of: ',i8)
-1020  format(1x,'>>>> fatal error -- number of elements: ',i8,
-     &        /,'                    exceeds current limit of: ',i8)
 1030  format(1x,'>>>> fatal error -- number of material properties',
      &       ': ',i5,
      &        /,'                    exceeds current limit of: ',i8)
@@ -739,7 +798,7 @@ c
 1050  format(1x,'>>>> fatal errors have occurred.  neutral file',
      &        /,'     processing aborted.')
 1060  format(/,8x,'>> neutral file created on: ', a12,' time: ',a8,
-     &       //,8x,  '>> patran neutral version:', a )
+     &       //,8x,  '>> patran version:', a )
 1070  format(/,8x,'>> model size parameters:'
      &  /,14x,'>> number of nodes ...............',i8,
      &  /,14x,'>> number of elements ............',i8,
@@ -838,7 +897,7 @@ c
       implicit integer (a-z)
       real   dvals, angle1, angle2, angle3
       logical  status
-      dimension   nodlst(10), dvals(5)
+      dimension   nodlst(10), dvals(5), tmp_20_list(20)
       data  nnpc, nadvpc / 10, 5 /
 c
 c
@@ -945,7 +1004,17 @@ c                  later in patwarp.
 c
          nnode_elem = nodes
          if ( nnode_elem .eq. 20 ) then
-            call order1215( eleinc(eleipt(elemid)), nnode_elem, 1 )
+            kk = eleipt(elemid)
+            do i = 1, 20
+             tmp_20_list(i) = eleinc(kk)
+             kk = kk + 1
+            end do 
+            call order1215( tmp_20_list, nnode_elem, 1 )
+            kk = eleipt(elemid)
+            do i = 1, 20
+             eleinc(kk) = tmp_20_list(i)
+             kk = kk + 1
+            end do   
             if ( nnode_elem .eq. 8 ) elennd(elemid) = 8
          end if
          if ( nnode_elem .eq.  8 ) then
@@ -1027,7 +1096,6 @@ c
      &       /, '   translation aborted' )
  1205 format(1x,'>> element id: ',i8,' has unsupported # nodes',
      &       /, '    for type. translation aborted' )
- 1300 format(1x,'>> element id > number of elements. job aborted' )
  2000 format( /,'FATAL ERROR: processing element id:',i12,
      & /,       '             larger than element count of:',i12,
      & /,       '             Patwarp requires nodes-elements to be',
@@ -1320,9 +1388,9 @@ c
       cdof = 0
       mask = 0
       do dof = 1, 6
-        if ( icomp(dof) .eq. 0 ) cycle
-        cdof = cdof + 1
-        mask = biton( mask, dof )
+             if ( icomp(dof) .eq. 0 ) cycle
+             cdof = cdof + 1
+             mask = biton( mask, dof )
       end do
 c
 c            read the data cards containing values in compressed format.
@@ -1345,7 +1413,7 @@ c      end if
              return
       end if
       if ( nxtndt + cdof .gt. maxndt ) then
-             write(termot,9030) node
+             write(termot,9031) node
              return
       end if
 c
@@ -1369,7 +1437,11 @@ c
       return
  9010 format( i8,6i1 )
  9020 format( 5e16.9 )
- 9030 format(1x,'>>>> warning -- insufficient array space to store',
+ 9030 format(1x,'>>>> warning -- insufficient array space (maxnls)',
+     & ' to store',
+     &   /,  1x,'                constraints for node ',i8 )
+ 9031 format(1x,'>>>> warning -- insufficient array space (maxndt)',
+     & ' to store',
      &   /,  1x,'                constraints for node ',i8 )
  9040 format(1x,'>>>> warning -- constraint on set other than',
      &          ' 1 ignored.')
@@ -1888,7 +1960,7 @@ c            eliminate displacement incompatibility
 c
       call trntran
 c
-c            reorder elements in to blocks to warp input file.
+c            set blocking command
 c
       call trnler
 c
@@ -1943,6 +2015,10 @@ c
       call trnlcn
       write(termot,9090)
 c
+c            write a patran neutral file
+c
+      write(ofile,9130)
+c
 c            nonlinear loading, analysis parameters,
 c            example compute and output commands.
 c
@@ -1952,16 +2028,6 @@ c
 c            all done.
 c
       write(termot,9070)
-c
-c            write modified patran neutral file
-c
-      call trnlnf
-c
-c            write patran elem results file with blocking and processor
-c            info
-c
-      call trnlpo
-c
 c
       return
 c
@@ -1982,29 +2048,29 @@ c
  9100 format(14x,'>> nodal and element loads written' )
  9110 format(14x,'>> coupled set equations written' )
  9120 format(14x,'>> blocking command written')
- 9200 format('c ',/,'c ',/,' loading test',/,'  nonlinear',/,
-     &  '    step 1-10 set_01 1.0 set_02 2.5 constraint 1.4 ',
-     &   '$ just an example !',/,
+ 9130 format('c',/,
+     &  'c    output patran neutral "neutral_from_warp3d"' )
+ 9200 format('c ',/,' loading test',/,'  nonlinear',/,
+     &  '    step 1-10 set_01 1.0 set_02 2.5 constraint 1.4  ',
+     &        '$ just an example!',/,
      &  'c ',/,
      &  ' nonlinear analysis parameters',/,
      &  '   solution technique sparse direct ',/,
      &  'c   solution technique sparse iterative ',/,
-     &  'c   solution technique hypre',/,
-     &  'c   hypre tolerance 0.000001',/,
      &  '   time step 1.0e06 ',/,
-     &  '   maximum iterations 5 $  global Newton iterations',/,
+     &  '   maximum iterations 5 $ global Newton iterations',/,
      &  '   minimum iterations 1',/,
      &  '   extrapolate on',/,
-     &  '   line search off',/,
-     &  '   divergence check on',/,
      &  '   convergence test norm res tol 0.01',/,
+     &  '   line search off',/,
+     &  '   divergence check on ',/,
      &  '   nonconvergent solutions stop',/,
-     &  '   adaptive on  $ global Newton iterations',/,
+     &  '   adaptive on   $ global Newton iterations',/,
      &  '   batch messages off',/,
      &  '   wall time limit off',/,
      &  '   material messages off',/,
      &  '   bbar stabilization factor 0.0',/,
-     &  '   consistent q-matrix on' )
+     &  '   consistent q-matrix off' )
  9300 format('   trace solution on',/,
      &  '   display tied mesh mpcs off',/,
      &  '   user_routine off',/,'c ',/,'c ',/,
@@ -2021,7 +2087,6 @@ c
 c
       end
 c
-c
 c ************************************************************************
 c *                                                                      *
 c *  routine separate_file -- user specifies if coordinates, incidences  *
@@ -2037,9 +2102,15 @@ c
       use patwarp_data
       implicit integer (a-z)
 c
+      logical loop_control, yn_control
+c
 c               write coordinates, incidences and blocking, and
 c               constraints to separate file or main output file
 c
+c
+      loop_control = .true.
+      yn_control = .true.
+      i = 0
 c
 c                         seventh question asked (q_num = 7)
 c                         'coord., incid-blocking, const. written
@@ -2048,7 +2119,6 @@ c                         ynanswers(7) = 1, => yes
 c
 c                         create files for coordinates, incidences-blocking,
 c                         and constraints, open...
-c
 c
       q_num = 7
 c
@@ -2077,10 +2147,12 @@ c
       return
       end
 c
+c
 c ************************************************************************
 c *                                                                      *
 c *   routine sample_materials -- writes out sample materials to output  *
 c *                               file                                   *
+c *                                                                      *
 c *   written by: jp                    8-1-2014 updated RHD             *
 c *                                                                      *
 c ************************************************************************
@@ -2208,210 +2280,15 @@ c
      &       'c     ***************************************',/,
      &       'c ',/,'c ')
 c
-c
-c
-      end
-c
-c
-c
-c ************************************************************************
-c *                                                                      *
-c *  routine questions -- Asks questions to be used in creating the      *
-c *                       warp3d input file                              *
-c *                                                                      *
-c ************************************************************************
-c
-      subroutine questions_old
-      use patwarp_data
-      implicit integer (a-z)
-c
-c
-      character * 1 ques_ans, default_ans
-c
-c
-c                   asks questions to determine format of warp input
-c                   file and other variables
-c
-c                   integer answers are stored in array 'ynanswers'
-c                   ynanswers has a length of 9, possible values
-c
-c                   ynanswers(q_num) = 1, => answer was yes
-c                   ynanswers(q_num) = 0, => answer was no
-c                   ynanswers(q_num) = some integer
-c
-c                   stored as follows:
-c
-c                       ynanswers(q_num)
-c
-c                              q_num = 1   create transition elements?
-c                                          * used in subroutine trntran *
-c                              q_num = 2   run in mpi parallel?
-c                                          * used in subroutine trnler *
-c                              q_num = 3   block size (threads or mpi)
-c                                          * used in subroutine trnler *
-c                              q_num = 4   number of processors? (mpi)
-c                                          * used in subroutine trnler *
-c                              q_num = 5   setup to use ebe preconditioner?
-c                                            (parallel)
-c                                              -> obsoleted. 5/2013
-c                                          * used in subroutine trnler *
-c                              q_num = 6   print the new=>old element
-c                                            listing?
-c                                          * used in subroutine trnler *
-c                              q_num = 7   coord, incid-block, const placed
-c                                            in separate files?
-c                                          * used in subroutine separate_file *
-c                              q_num = 8   make updated patran neut file?
-c                                          * used in subroutine trnlnf *
-c                              q_num = 9   make a patran-readable results
-c                                            file?
-c                                          * used in subroutine trnlpo *
-c
-c                       q_num = 6,7,8,9 request file names if yes was
-c                                       answered
-c
-c
-c
-c
-      default_ans = 'y'
-      q_num = 1
-      write(termot,110)
-      read(termin,100)ques_ans
-      call process_answer(q_num,ques_ans,default_ans)
-c
-c
-      default_ans = 'n'
-      q_num = 2
-      write(termot,120)
-      read(termin,100)ques_ans
-      call process_answer(q_num,ques_ans,default_ans)
-c
-      if( ynanswers(q_num) .eq. 0 ) then  ! threads only
-         q_num = 3
-         write(termot,131)
-         isize = 128
-         read(termin,200) block_size
-         if( block_size .eq. 0 ) block_size = isize
-         ynanswers(q_num) = block_size
-      else    ! MPI + threads
-         q_num = 4
-         write(termot,140)
-         read(termin,200) numprocs
-         ynanswers(q_num) = numprocs
-         q_num = 5
-         default_ans = 'n'
-         call process_answer(q_num,ques_ans,default_ans)
-         isize = 128
-         write(termot,132)
-         read(termin,200) block_size
-         if( block_size .eq. 0 ) block_size = isize
-         q_num = 3
-         ynanswers(q_num) = iabs( block_size )
-      end if
-c
-c
-      default_ans = 'n'
-      q_num = 6
-      write(termot,160)
-      read(termin,100)ques_ans
-      call process_answer(q_num,ques_ans,default_ans)
-c
-      if( ynanswers(q_num) .eq. 1 ) then
-         write(termot,161)
-         read(termin,300)elem_print_file
-      end if
-c
-c
-      default_ans = 'n'
-      q_num = 7
-      write(termot,170)
-      read(termin,100)ques_ans
-      call process_answer(q_num,ques_ans,default_ans)
-c
-      if( ynanswers(q_num) .eq. 1 ) then
-         write(termot,171)
-         read(termin,300) prefix_name
-      end if
-c
-c
-      default_ans = 'n'
-      q_num = 8
-      write(termot,180)
-      read(termin,100)ques_ans
-      call process_answer(q_num,ques_ans,default_ans)
-c
-      if( ynanswers(q_num) .eq. 1 ) then
-         write(termot,181)
-         read(termin,300)nptfle
-      end if
-c
-c
-      default_ans = 'n'
-      q_num = 9
-      write(termot,190)
-      read(termin,100)ques_ans
-      call process_answer(q_num,ques_ans,default_ans)
-c
-      if( ynanswers(q_num) .eq. 1 ) then
-         write(termot,191)
-         read(termin,300)resfile
-      end if
-c
-c
-      return
-c
-c
- 100  format(a1)
- 110  format(/,' >> create transition elements (y/n, default=y)? ',$)
- 120  format(/,' >> run with MPI + threads parallel:'
-     &       /,'     (y/n, default is no & means threads only)? ', $)
- 131  format(/,' >> threads only mode. input element block size:',/,
-     &         ' >> (default = 128)? ',$)
- 210  format(/,' >> set up to use conjugate-gradient solver:',
-     &       /,' >>  (y/n, default = n)? ',$)
- 132  format(/,' >> element block size used in domains: ',
-     &           '(default = 128)? ',$)
- 140  format(/,' >> input the number of MPI processes. will equal',/,
-     &         ' >>    the number of model domains (default = 1)? ',$)
- 150  format(/,' >> setup to use conjugate gradient solver:',
-     &         ' (y/n, default=n)? ',$)
- 160  format(/,' >> due to domain decomposition and/or blocking',/,
-     &         ' >>    element numbers may change.',/,
-     &         ' >>    print the new=>old element listing ',
-     &         '(y/n, default=n)? ' ,$)
- 161  format(/,' >> name of file for printing element listing? ',
-     &        /' >> (press enter to print to screen, or press dd',
-     &        /'    to use filename old_to_new_ele.txt)? ',$)
- 170  format(/,' >> coordinates, incidences-blocking, and ',
-     &         'constraints',/,
-     &         ' >>    input data placed in separate files, '
-     &         '(y/n, default = n)? ',$)
- 171  format(/,' >> specify file prefix  *.coordinates',/,
-     &         ' >>                      *.incid_and_blocking',/,
-     &         ' >>                      *.constraints',/,
-     &         ' >>   (default file names: default.*)? ',$)
- 180  format(/,' >> make an updated patran neutral file ',
-     &         '(y/n, default=n)? ',$)
- 181  format(/,' >> input new patran neutral file name',/,
-     &         ' >>   (default: newpat.out)? ',$)
- 190  format(/,' >> make a patran-readable element results file',/,
-     &         ' >>   which displays the processor and block',/,
-     &         ' >>   assignments for the elements ',
-     &         '(y/n, default=n)? ',$)
-c    rwh -- modification
- 191  format(/,' >> input file name (default: metis_pat_info.els)? ',$)
- 200  format(i6)
- 300  format(a80)
- 9000 format(/,10x,'Note: block assignments will prevent elements',
-     &       /,10x,'      within a block from sharing a common node.',
-     &       /,10x,'      This is termed vectorized blocking.')
-c
       end
 c
 c ************************************************************************
 c *                                                                      *
 c *  routine questions -- Asks questions to be used in creating the      *
 c *                       warp3d input file                              *
+c *                                                                      *
+c *  written by: jp                7-26-99                               *
+c *  modified by: rd               10-12-12 redesigned                   *
 c *                                                                      *
 c ************************************************************************
 c
@@ -2439,15 +2316,15 @@ c                       ynanswers(q_num)
 c
 c                              q_num = 1   create transition elements?
 c                                          * used in subroutine trntran *
-c                              q_num = 2   run in mpi parallel?
+c       *deprecated*           q_num = 2   run in MPI+threads parallel?
 c                                          * used in subroutine trnler *
-c                              q_num = 3   block size (threads or mpi)
+c                                          not available in Windows, Mac OS X
+c                              q_num = 3   block size. not user definable.
+c                                          set to 128
+c       *deprecated*           q_num = 4   number of processors? (MPI+threads)
 c                                          * used in subroutine trnler *
-c                              q_num = 4   number of processors? (mpi)
-c                                          * used in subroutine trnler *
-c                              q_num = 5   setup to use ebe preconditioner?
-c                                            (parallel)
-c                                             -> obsolete 5/2013
+c       *deprecated*           q_num = 5   setup to use ebe preconditioner?
+c                                            (OpenMP or MPI+threads)
 c                                          * used in subroutine trnler *
 c                              q_num = 6   print the new=>old element
 c                                            listing?
@@ -2455,7 +2332,7 @@ c                                          * used in subroutine trnler *
 c                              q_num = 7   coord, incid-block, const placed
 c                                            in separate files?
 c                                          * used in subroutine separate_file *
-c                              q_num = 8   make updated patran neut file?
+c                              q_num = 8   make updated patran neutral file?
 c                                          * used in subroutine trnlnf *
 c                              q_num = 9   make a patran-readable results
 c                                            file?
@@ -2464,85 +2341,70 @@ c
 c                       q_num = 6,7,8,9 request file names if yes was
 c                                       answered
 c
+c           Patwarp no longer supports domain decomposition for MPI.
+c           This version of patwarp started with the Linux version
+c           having MPI features disabled 
 c
+c           The threads only version of WARP3D supports only the
+c           Intel/Pardiso sparse (direct and iterative) solvers.
 c
+c           Vectorized blocking for old EBE solver
+c           removed from options. Use the automatic blocking provided by
+c           WARP3D
 c
-      default_blk_size = 128
- 10   continue
-      write(termot,400); write(termot,410)
-      read(termin,*) ianswer
-      if( ianswer .gt. 0 .and. ianswer .le. 2 ) then
-          block_method = ianswer
-      else
-          write(termot,*) '... invalid choice. try again...'
-          go to 10
-      end if
+c           prompt/read for deprecated features now commented below.
+c           hard-coded answers to eliminate domain decomposition and forced
+c           element renumbering for the deprecated EBE solver.
 c
-      if( block_method .eq. 1 ) then
-        ynanswers(1) = 0
-        ynanswers(2) = 0
-        ynanswers(3) = default_blk_size
-        ynanswers(4) = 1
-        ynanswers(5) = 0
-        ynanswers(6) = 0
-        ynanswers(8) = 0
-        ynanswers(9) = 0
-      end if
+      q_num = 2
+      ques_ans = 'n'   ! MPI deprecated
+      call process_answer(q_num,ques_ans,default_ans)
 c
-      if( block_method .eq. 2 ) then
-        ynanswers(1) = 0
-        ynanswers(2) = 1
-        ynanswers(3) = 128
-        ynanswers(4) = 0
-        ynanswers(5) = 0
-        ynanswers(6) = 0
-        ynanswers(8) = 0
-        ynanswers(9) = 0
-        q_num = 4
-        write(termot,140)
-        read(termin,200) numprocs
-        if( numprocs .eq. 0 ) numprocs = 1
-        ynanswers(q_num) = numprocs
-        q_num = 3
-        write(termot,132)
-        read(termin,200) block_size
-        if( block_size .eq. 0 ) block_size = default_blk_size
-        ynanswers(q_num) = block_size
-        default_ans = 'n'
-        q_num = 6
-        write(termot,162)
-        read(termin,100)ques_ans
-        call process_answer(q_num,ques_ans,default_ans)
-        if( ynanswers(q_num) .eq. 1 ) then
-           write(termot,161)
-           read(termin,300)elem_print_file
-        end if
-        default_ans = 'n'
-        q_num = 8
-        write(termot,180)
-        read(termin,100)ques_ans
-        call process_answer(q_num,ques_ans,default_ans)
-        if( ynanswers(q_num) .eq. 1 ) then
-           write(termot,181)
-           read(termin,300)nptfle
-        end if
-        default_ans = 'n'
-        q_num = 9
-        write(termot,190)
-        read(termin,100)ques_ans
-        call process_answer(q_num,ques_ans,default_ans)
-        if( ynanswers(q_num) .eq. 1 ) then
-           write(termot,191)
-           read(termin,300)resfile
-        end if
-      end if
+      q_num = 3   ! blocking. < 0 means vectorized *deprecated*
+      block_size = 128 
+      block_method = 1
+c      write(termot,131); write(termot,400)
+c      read(termin,*) ianswer1
+c      if( ianswer1 .eq. 2 ) block_method = 2
+c      if( block_method .eq. 2 ) block_size = -block_size
+      ynanswers(q_num) = block_size
 c
-
+      default_ans = 'n'
+      ques_ans = " "
+      q_num = 6
+c      if( block_method .eq. 2 ) then
+c         write(termot,160)
+c         read(termin,100)ques_ans
+c         ques_ans = default_ans
+c      end if
+      call process_answer(q_num,ques_ans,default_ans)
+c
+c      if( ynanswers(q_num) .eq. 1 ) then
+c         write(termot,161)
+c         read(termin,300) elem_print_file
+c		 write(termot,9000)
+c      end if
+c
+      default_ans = 'n'
+      q_num = 8
+      call process_answer(q_num,ques_ans,default_ans)
+c
+c      if( block_size .lt. 0 ) then
+c        write(termot,180)
+c        read(termin,100) ques_ans
+c        call process_answer(q_num,ques_ans,default_ans)
+c        if( ynanswers(q_num) .eq. 1 ) then
+c         write(termot,181)
+c         read(termin,300)nptfle
+c        end if
+c      end if
+c
       default_ans = 'n'
       q_num = 7
       write(termot,170)
       read(termin,100)ques_ans
       call process_answer(q_num,ques_ans,default_ans)
+c
       if( ynanswers(q_num) .eq. 1 ) then
          write(termot,171)
          read(termin,300) prefix_name
@@ -2551,67 +2413,52 @@ c
       default_ans = 'y'
       q_num = 1
       write(termot,110)
-      read(termin,100)ques_ans
+      read(termin,100) ques_ans
+      call process_answer(q_num,ques_ans,default_ans)
+c
+c
+      default_ans = 'n'
+      q_num = 9
+      ques_ans = default_ans
       call process_answer(q_num,ques_ans,default_ans)
 c
       return
 c
  100  format(a1)
  110  format(/,' >> create transition elements (y/n, default=y)? ',$)
- 120  format(/,' >> run with MPI + threads parallel:'
-     &       /,'     (y/n, default is no & means threads only)? ', $)
- 131  format(/,' >> threads only mode. input element block size:',/,
-     &         ' >> (default = 128)? ',$)
- 210  format(/,' >> set up to use conjugate-gradient solver:',
-     &       /,' >>  (y/n, default = n)? ',$)
- 132  format(/,' >> element block size used in domains: ',
-     &           '(default = 128)? ',$)
- 140  format(/,' >> number of MPI processes (same as',/,
-     &         '    the number of model domains (default = 1)? ',$)
- 150  format(/,' >> setup to use conjugate gradient solver:',
-     &         ' (y/n, default=n)? ',$)
- 160  format(/,' >> vectorized blocking may change ',
-     &         'element numbers',/,
+ 131  format(/,' >> blocking:',
+     &    /, '         (1) automatic for Intel/Pardiso solvers',
+     &    /, '         (2) vectorized for EBE PCG solver' )
+ 400  format(/,' >> choice: ',$)
+ 160  format(/,' >> due to vectorized blocking, ',
+     &         'element numbers may change.',/,
      &         ' >> print the new => old element listing ',
      &         '(y/n, default=n)? ' ,$)
- 161  format(/,' >> name of file for printing element listing? ',
-     &        /'    (press enter to print to screen, or press dd',
-     &        /'    to use filename old_to_new_ele.txt)? ',$)
- 162  format(/,' >> domain decomposition may change ',
-     &         'element numbers',/,
-     &         '    print the new => old element listing ',
-     &         '(y/n, default=n)? ' ,$)
+ 161  format(/,' >> name of file for printing element listing? ',/
+     &         ' >> (or, press enter to print to screen)? ',$)
  170  format(/,' >> coordinates, incidences-blocking, and ',
      &         'constraints',/,
-     &         '    input data placed in separate files, '
+     &         ' >> input data placed in separate files, '
      &         '(y/n, default = n)? ',$)
- 171  format(/,' >> specify file prefix  *.coordinates',/,
-     &         ' >>                      *.incid_and_blocking',/,
-     &         ' >>                      *.constraints',/,
-     &         ' >>   (default file names: default.*)? ',$)
- 180  format(/,' >> make an updated patran neutral file ',
-     &         '(y/n, default=n)? ',$)
+ 171  format(/,' >> specify file prefix  *_coords.inp',/,
+     &         ' >>                      *_incid.inp',/,
+     &         ' >>                      *_constraints.inp',/,
+     &         ' >>   (default file names: default_*)? ',$)
+ 180  format(/,' >> make a new patran neutral file (y/n, default=n)? ',
+     & $ )
  181  format(/,' >> input new patran neutral file name ',
-     &         '(default: newpat.out)? ',$)
- 190  format(/,' >> make a patran-readable element results file ',
-     &         'to display the block',/,
-     &         '    assignments for the elements ',
-     &         '(y/n, default=n)? ',$)
- 191  format(/,' >> input file name (default: metis_pat_info.els)? ',$)
+     &    '(default: newpat.out)? ',$)
  200  format(i6)
  300  format(a80)
- 400  format(/,' >> execution procedure: ',
-     & /,6x,'(1) threads-only, Pardiso sparse solver ',
-     &      '(direct/iterative)',
-     & /,6x,'(2) MPI + threads, hypre solver ' )
- 410  format(/,' >> choice: ',$)
 c
       end
 c
 c ************************************************************************
 c *                                                                      *
 c *  routine process_answer -- Processes the answer to questions used    *
-c *                            to specify warp input file format         *
+c *                            to specify warped input file format       *
+c *                                                                      *
+c *  written by: jp              7-26-99                                 *
 c *                                                                      *
 c ************************************************************************
 c
@@ -2648,7 +2495,7 @@ c
       end do
 c
 c
-      if( ques_ans .eq. ' ' ) ques_ans = default_ans
+      if( ques_ans .eq. ' ' )ques_ans = default_ans
 c
       if( ques_ans .eq. 'y' .or. ques_ans .eq. 'Y' )
      &                                ynanswers(q_num) = 1
@@ -2673,6 +2520,8 @@ c *                                                                      *
 c *  routine trntran -- Determine what kind of hex transition elements   *
 c *                     are needed and then add nodes to original 8-node *
 c *                     element. ignores non-hex elements                *
+c *  written by : cm                                                     *
+c *  modified by: rhd 1/23/2020                                          *
 c *                                                                      *
 c ************************************************************************
 c
@@ -2691,6 +2540,7 @@ c
       integer num_rep(maxtrn)
 c
       logical found_8, found_20, local_debug, hex_element
+c
 c
       data etype_8_node, etype_9_node, etype_12_node, etype_15_node,
      &     etype_20_node /1, 5, 2, 3, 4/
@@ -2764,7 +2614,6 @@ c
          incptr = eleipt(elem) - 1
          do enode = 1, num_enodes
             snode = eleinc(incptr + enode)
-            if( snode .eq. 0 ) cycle ! funky etypes can have zeros
 c
 c               if nodes were not renumbered in patran, then we have
 c               problems... do a fatal error.
@@ -2811,8 +2660,8 @@ c             between an 8 and a 20-node element
 c
       do snode = 1, numnod
          num_elems = elem_count(snode)
-         found_8  = .false.
-         found_20 = .false.
+         found_8   = .false.
+         found_20  = .false.
 	     nod_trn_list(snode) = 0
          do j = 1, num_elems
             elem = nodal_incid(snode,j)
@@ -3057,6 +2906,7 @@ c
 c ************************************************************************
 c *                                                                      *
 c *                     routine element_12_15                            *
+c *                                                                      *
 c *                                                                      *
 c *   this subroutine redefines the incidences for a 8-node to convert   *
 c *   it in to a 12 or 15 node transition element                        *
@@ -3307,6 +3157,7 @@ c ************************************************************************
 c *                                                                      *
 c *                      routine element 9                               *
 c *                                                                      *
+c *                                                                      *
 c *           this subroutine redefines the incidences for a 8-node      *
 c *           to convert it in to a 9-node transition element            *
 c *                                                                      *
@@ -3551,8 +3402,7 @@ c
       face_tr=1000*list_tr(1)+100*list_tr(2)+10*list_tr(3)+list_tr(4)
       face_20=1000*list_20(1)+100*list_20(2)+10*list_20(3)+list_20(4)
 c
-c             selecting the 20-node element face from the
-c             24 available (face_typ_20)
+c             selecting the 20-node element face from the 24 available (face_typ_20)
 c
       flag = .false.
       do i = 1, 24
@@ -3572,8 +3422,7 @@ c
          stop
       end if
 c
-c             selecting the transition element face from
-c             the 6 available (face_typ_tr)
+c             selecting the transition element face from the 6 available (face_typ_tr)
 c
       flag = .false.
       do i = 1, 6
@@ -3699,8 +3548,11 @@ c ************************************************************************
 c *                                                                      *
 c *   routine  trnler -- originally subroutine elrodr                    *
 c *                                                                      *
-c *     this subroutine reorders the elements into blocks following a    *
-c *     set of rules (same type, nonlinearity, material model, etc.)     *
+c *                       written by : bh                                *
+c *                                                                      *
+c *                   modified by rd: 11/15/2025 rhd                     *
+c *                                                                      *
+c *     this subroutine sets to use WARP3D automatic blocking            *
 c *                                                                      *
 c ************************************************************************
 c
@@ -3708,19 +3560,16 @@ c
       subroutine trnler
       use patwarp_data
       implicit integer (a-z)
-      integer, allocatable :: iblock(:)
-      logical print_to_file, start_blk, parallel_ebe
-c
-      data numprocs / 1 /
 c
       if (debug) write (termot,*) '>>>> inside trnler'
-      print_file_num = 13
-      allocate( iblock(numele) )
-c
 c
 c                    block_method = 1 => just use simple
 c                                        WARP3D built-in automatic
 c                                        blocking
+c
+c                    = 2 => user wants vectorized blocking to
+c                           support EBE PCG solver
+c                           *Deprecated with removal of EBE solver.*
 c
       if( block_method .eq. 1 ) then
         write(termot,9500)
@@ -3730,943 +3579,16 @@ c
         blksz = ynanswers(3)
         return
       end if
-
-      write(termot,9400)
 c
-c
- 10   continue
-c
-c                     second question asked (q_num = 2)
-c                     'run in MPI + threads parallel...?'
-c                     ynanswers(2) = 1, => yes
-c                     ynanswers(2) = 0, => no
-c
-      q_num = 2
-      if( ynanswers(q_num) .eq. 0 ) then
-         parallel = .false.
-       else
-         parallel = .true.
-c
-c                     fourth question asked (q_num = 4)
-c                     'number of MPI processors...?'
-c                     ynanswers(4) = number of processors
-c
-         q_num = 4
-         numprocs = ynanswers(q_num)
-         if ( numprocs .eq. 0 ) numprocs = 1
-c
-c                     fifth question asked (q_num = 5)
-c                     'setup for conjugate gradient solver...?'
-c                     we now assume ebe (HW) pre-conditioner will be used
-c                     ynanswers(5) = 1, => yes
-c                     ynanswers(5) = 0, => no
-c
-         q_num = 5
-         if ( ynanswers(q_num) .eq. 1 )then
-            parallel_ebe = .true.
-         else
-            parallel_ebe = .false.
-         end if
+      if( block_method .eq. 2 ) then
+        write(termot,9400) 
+        stop
       end if
 c
-c                      when in threads only:
-c                      third question asked (q_num = 3)
-c                      'threads only mode, input block size...?'
-c                      (negative means set up for conjugate gradient
-c                      solver -> vectorized blocking
-c                      ynanswers(3) = block size
-c
-c                      when in MPI_threads parallel:
-c                      fifth question asked, but stored (q_num = 3)
-c                      questions routine sets block size negative if
-c                      user also wnts set up for conjugate gradient solver.
-c                      we assume HW preconditioner will be used ->
-c                      vectorized blocking.
-c
-c                      If blocking is given as postive, then use
-c                      scalar blocking; otherwise use vectorized blocking.
-c
-c
-      q_num = 3
-      blksz = ynanswers(q_num)
-c
-      if ( blksz .eq. 0 ) blksz = 128
-      if ( blksz .gt. 0 ) then
-         write (termot,9080)
-         scalar = .true.
-      else
-         blksz = - blksz
-         scalar = .false.
-      end if
-c
-c
-c                       determine blocks of non-conflicting, similar
-c                       elements.
-c
-c                       if this is MPI, first determine the element
-c                       processor assignment.  If the ebe preconditioner
-c                       is to be used, determine the processors that
-c                       own the neighboring elements -- this is used as
-c                       an additional criterion for forming blocking groups
-c
-      if ( parallel .and. (numprocs .gt. 1) ) then
-         call trnlmetis (numprocs)
-         if ( parallel_ebe ) then
-            call trnlproc_access
-         else
-            do i = 1, numele
-               elem_access(i) = 1
-            end do
-         end if
-      else
-         do i = 1, numele
-            eleproc(i) = 1
-            elem_access(i) = 1
-         end do
-      end if
-c
-c                       find groups of similar elements; all the elements
-c                       in a group must be the same type and have the same
-c                       configuration number. If we are constructing a model
-c                       to run in parallel, then all elements in a group
-c                       must also be on the same processor.
-c
-      call getgrp
-c
-c                       sort each group of similar elements into
-c                       non-conflicting blocks and store these blocks
-c                       into the appropriate global data structure.
-c
-c                       on a scalar machine, nonconflicting blocks are
-c                       not necessary.  However, the blocks must still
-c                       contain similar elements, so if there are
-c                       multiple configuration numbers or element
-c                       types, then we will still have to renumber
-c                       the elements (warp requires all the elements
-c                       in a block to have the same material properties,
-c                       element types, etc.).  Output a warning
-c                       if we have scalar blocking but must renumber
-c                       anyway because we have multiple configuration
-c                       numbers.
-c
-c
-      nelblk = 0
-      blk    = 0
-c
-      if ( scalar .and. (numgrp .gt. 1) ) write (termot,9100)
-      if ( .not. scalar ) write (termot,9200)
-c
-c                       looping over groups
-c
-      if (debug) write (termot,*) 'looping over groups'
-      do i = 1, numgrp
-c
-c                       ==   setting group properties
-c
-         nnode = elennd(grphead(i))
-         nel   = grpnum(i)
-         if (debug)
-     &        write (termot,'("grp:",i4," nnode:",i2," elms:",i5)')
-     &        i,nnode, nel
-c
-c                       ==  figure out how many blocks you need.
-c                              if scalar -- just divide number of
-c                                  elements by blocksize.
-c                              if vector -- use the red-black
-c                                  algorithm to assign the blocks
-c
-c
-         lstblk = nelblk
-         if ( scalar ) then
-            nelblk = nelblk + (nel/blksz)
-            if ( mod(nel,blksz) .ne. 0 ) nelblk = nelblk + 1
-         else
-            call gtblrb( nel, nnode, blksz, i, iblock )
-         end if
-         if (debug) write (termot,'(" need ",i4," blocks.")') nelblk
-c
-c                       ==  now build elblks structure -- an entry for
-c                       ==  each block
-c
-c                                zero out array
-c
-         do j = lstblk+1, nelblk
-            elblks(0,j) = 0
-         end do
-c
-c                                if scalar, then fill the blocks in
-c                                current group in same order as group
-c
-         if ( scalar ) then
-c
-c                                   fill next block
-c
-            blk = blk + 1
-            start_blk = .true.
-c
-c                                   loop over elements in group. If we
-c                                   fill current block, fill the next block.
-c                                   if we are constructing an input file for
-c                                   parallel computers, store the processor
-c                                   number which owns the elements in the block
-c                                   (in blkproc).
-c
-	    nxtele = grphead(i)
-            do j = 1,nel
-               elem = nxtele
-	       if ( elem .eq. 0) then
-		  write (termot,*) '>>>> ptr error in trnler'
-		  stop
-               end if
-	       nxtele = grplst(elem)
-               if ( parallel .and. start_blk ) then
-                  blkproc ( blk ) = eleproc(elem) - 1
-                  start_blk = .false.
-               endif
-               elblks(0,blk) = elblks(0,blk)+1
-               elblks(elblks(0,blk),blk) = elem
-               if ( (elblks(0,blk).eq.blksz) .and. (j.ne.nel) ) then
-                  blk = blk + 1
-                  start_blk = .true.
-                  if ( blk .gt. mxnmbl ) then
-                     write(termot,9000)
-                     stop
-                  end if
-               end if
-            end do
-c
-c                                if vectorized, then fill in blocks as
-c                                decided in the red-block algorithm,
-c                                using iblock.
-c
-         else
-	    nxtele = grphead(i)
-            do j = 1, nel
-               elem = nxtele
-	       if ( elem .eq. 0) then
-		  write (termot,*) '>> ptr error in trnler'
-		  stop
-               end if
-	       nxtele = grplst(elem)
-               blk = iblock(elem)
-               elblks(0,blk) = elblks(0,blk)+1
-               elblks(elblks(0,blk),blk) = elem
-            end do
-         end if
-c
-c                        ==  end of looping over groups
-c
-      end do
-c
-c                        if debug, then print the eleblk structure.
-c
-      if (debug) then
-         write (termot,*) 'the eleblk structure:'
-         do blk = 1, nelblk
-            write (termot,'("   in block ",i4," are elements:")')blk
-            do elems = 1, elblks(0,blk)
-               write (termot,'(6x,i5)')elblks(elems,blk)
-            end do
-         end do
-      end if
-c
-c                        now create the reordered element incidences.
-c                        if the blocking is scalar and there is
-c                        only one element type and one configuration
-c                        number, then the new numbering will be the
-c                        same as the old numbering.  Otherwise, the
-c                        new and old orderings will be different.
-c
-c                        elreno, the vector that holds the reordering,
-c                        is structured as:
-c                             elreno(new number) = old element number
-c
-c
-      nel = 0
-      do j = 1, nelblk
-         span = elblks(0,j)
-         do l = 1, span
-            elem  = elblks(l,j)
-            nnode = elennd(elem)
-            nel   = nel + 1
-            elreno (nel) = elem
-         end do
-      end do
-c
-c                        if blocking is vectorized, ask if the
-c                        user wants the old element to new element
-c                        ordering printed.
-c
-      if ( scalar .and. (numgrp.eq.1) ) go to 1000
-
-c
-c                        sixth question asked (q_num = 6)
-c                        'print the new=>old element listing...?'
-c                        ynanswers(6) = 1, => yes
-c                        ynanswers(6) = 0, => no
-c
-c
-      q_num = 6
-      if ( ynanswers(q_num) .eq. 0 ) go to 1000
-c
-      print_to_file = .false.
-c
-c
-c
-c                         the file to print to was obtained in the
-c                         'questions' subroutine
-c                         now strip file name and open file(if specified)
-c
- 300  call stripf(elem_print_file)
-      if (elem_print_file(1:4) .ne. ' ') then
-         print_to_file = .true.
-         if (elem_print_file(1:2) .eq. 'dd')
-     &        elem_print_file(1:18)='old_to_new_ele.txt'
-       open(unit=print_file_num,file=elem_print_file,status='unknown',
-     &               err=400)
-      else
-         print_file_num = termot
-      endif
-      goto 500
-c
-c                         if can't open file, print to screen
-c
- 400  continue
-      write(termot,*)'>> Error in opening file. Writing to terminal.'
-      print_to_file = .false.
-c
-c                         now print the old to new element listing
-c
- 500  continue
-      lines = numele/9
-      if (lines.gt.0) then
-         do i= 1, numele/9
-            write(print_file_num,9050)(i-1)*9+1, (i-1)*9 + 9
-            write(print_file_num,9060)(9*(i-1)+j,j=1,9)
-            write(print_file_num,9070)(elreno(9*(i-1)+j),j=1,9)
-         enddo
-      endif
-      left_over = mod(numele,9)
-      if (left_over.gt.0) then
-         write(print_file_num,9050) lines*9+1,lines*9+left_over
-         write(print_file_num,9060)(9*lines+j,j=1,left_over)
-         write(print_file_num,9070)(elreno(9*lines+j),j=1,left_over)
-      endif
-      if (print_to_file) close(print_file_num)
-c
-c
- 1000 continue
-c
-c
-      if (debug) write (termot,*) '<<<< leaving trnler'
-      return
- 9000 format (' >>>> exceeded maximum number of blocks: ',/,
-     &        '       fatal error.  ending processing.')
- 9040 format (9i8)
- 9050 format (' >> new element listing: ',i8,' to ',i8)
- 9060 format ('new:',9i8)
- 9070 format ('old:',9i8)
- 9080 format (/,7x,' >> using standard blocking -- element',
-     &          ' reordering skipped')
- 9100 format (/,7x,' >> Notes:',/,
-     &        7x,'       >> Multiple element configurations',
-     &                      ' caused a renumbering process.',/,
-     &        7x,'       >> Elements of the same configuration ',
-     &                      ' are now numbered sequentially.',/,
-     &        7x,'       >> Patran element results files',
-     &                      ' should be displayed using newly',/,
-     &        7x,'              provided Patran neutral file for model.',
-     &       / )
- 9200 format (/,7x,' >> Notes: ',/,
-     &          7x '       >> Elements are renumbered. ',/)
- 9400 format (/,8x,'>> begin element reordering')
+ 9400 format("..... FATAL INTERNAL ERROR. routine trnler")
  9500 format (/,8x,'>> use WARP3D automatic blocking assignment')
-      end
-c
-c ************************************************************************
-c *                                                                      *
-c *                      routine  trnlmetis                              *
-c *                                                                      *
-c *     this subroutine calls the metis partitioning library to assign   *
-c *     elements to processors.  The ordering results are then used in   *
-c *     getgrp to make groups of elements corresponding to processors.   *
-c *                                                                      *
-c *                updated 9/9/2017 rhd (support for 2 node elements)    *
-c *                                                                      *
-c ************************************************************************
-c
-c
-      subroutine trnlmetis (numprocs)
-      use patwarp_data
-      implicit none
-c
-      integer :: numprocs
-c
-      integer, allocatable, dimension (:) :: etype, incvec, dadjncy,
-     &                                       elemwgt, options, dxadj,
-     &                                       node_reorder
-      integer :: elem, incptr, cnt, node, i, tot_node, ptr, dum, dum2
-c
-      logical :: two_node, tri_or_8node_cohes
-c
-      allocate ( options(0:4),
-     &           etype(numele),
-     &           dxadj(numele+1),
-     &           elemwgt(numele),
-     &           incvec(numele*8),
-     &           dadjncy(numele*8),
-     &           node_reorder(numnod) )
-c
-      options(0:4) = 0
-c
-c                          build incidence structure for use of Metis
-c                          decomposition library.  Metis only accepts linear
-c                          elems, and requires that the nodes be numbered
-c                          contiguously.  Thus we have to create a nodal
-c                          renumbering to remove the holes in the corner
-c                          numbering.  This does not effect the actual
-c                          node numbering, it is just a trick to get metis
-c                          to work correctly.
-c
-c                          set node_reorder to 1 for a node if it is
-c                          a corner node, 0 otherwise
-c
-c                          here and in next loops, we setup 2-node elements
-c                          to be treated as 8-node solids for Metis
-c
-      node_reorder(1:numnod) = 0
-c
-      do elem = 1, numele
-         incptr = eleipt(elem) - 1
-         two_node = eletyp(elem) .eq. 18 .or. eletyp(elem) .eq. 19
-         tri_or_8node_cohes = eletyp(elem) .eq. 11 .or.
-     &                        eletyp(elem) .eq. 12
-         if( tri_or_8node_cohes ) then
-            cnt = 4
-            etype(elem) = 2
-         elseif( two_node ) then
-            cnt = 2
-            etype(elem) = 3
-         else
-            cnt = 8
-            etype(elem) = 3
-         end if
-         do node = 1, cnt
-            node_reorder(eleinc(incptr+node)) = 1
-         end do
-      end do
-c
-c                              renumber all nodes which have a 1 in
-c                              node_reorder
-c
-      node = 0
-      do i = 1, numnod
-         if( node_reorder(i) .eq. 1 ) then
-            node = node + 1
-            node_reorder(i) = node
-         end if
-      end do
-      tot_node = node
-c
-c                              use reordering in incidence list
-c                              for Metis
-c
-      ptr = 0
-      do elem = 1, numele
-         incptr = eleipt (elem) - 1
-         two_node = eletyp(elem) .eq. 18 .or. eletyp(elem) .eq. 19
-         if( etype(elem) .eq. 2 ) then
-            cnt = 4
-         elseif( two_node ) then
-            cnt = 2
-         else
-            cnt = 8
-         end if
-         do node = 1, cnt
-            incvec(ptr+node) = node_reorder( eleinc(incptr+node) )
-            if( ptr+node .gt. numele*8 )  then
-                 write(*,*) '>> Fatal Error @ 1: trnlmetis'
-                 stop
-            end if
-         end do
-         if( two_node ) then
-            cnt = 8
-            incvec(ptr+3:ptr+8) = incvec(ptr+1)
-         end if
-         ptr = ptr + cnt
-      end do
-c
-c                          We must weight the graphs so that each
-c                          processor will take similar amounts of time.
-c
-c                          call METIS library to create graph from mesh
-c
-      write (termot,1200)
-      write (termot,1000)  tot_node
-      call METIS_MeshToDual ( numele, tot_node, incvec, etype, 1,
-     &     dxadj, dadjncy )
-      write(termot,1210)
-c
-c                          loop thru element types to assign weights to
-c                          the elements on the graphs.  Also make all
-c                          edges of weight 1.
-c
-      do elem = 1, numele
-         if ( eletyp(elem) .eq. 1 ) then
-            elemwgt(elem) = 10
-         else if ( eletyp(elem) .eq. 2) then
-            elemwgt(elem) = 23
-         else if ( eletyp(elem) .eq. 3) then
-            elemwgt(elem) = 35
-         else if ( eletyp(elem) .eq. 4) then
-            elemwgt(elem) = 63
-         else if ( eletyp(elem) .eq. 5) then
-            elemwgt(elem) = 13
-         else if ( eletyp(elem) .eq. 11) then
-            elemwgt(elem) = 10
-         else if ( eletyp(elem) .eq. 12) then
-            elemwgt(elem) = 63
-         else if ( eletyp(elem) .eq. 19) then
-            elemwgt(elem) = 10
-        end if
-      end do
-c
-c                          call METIS library to partition our weighted
-c                          graph.
-c
-      write(termot,1220)
-      if ( numprocs .ge. 8 ) then
-         call METIS_PartGraphKway (numele, dxadj, dadjncy, elemwgt,
-     &        dum, 2, 1, numprocs, options, dum2, eleproc)
-      else
-         call METIS_PartGraphRecursive (numele, dxadj, dadjncy,
-     &        elemwgt, dum, 2, 1, numprocs, options, dum2, eleproc)
-      endif
-c
-      deallocate( etype,incvec,dadjncy,elemwgt,options,node_reorder,
-     &            dxadj )
-      write(termot,1230)
-c
-      return
- 1000 format(8x,'>> total number of corner nodes:',i8)
- 1200 format(8x,'>> using metis to build graph of mesh' )
- 1210 format(8x,'>> completed graph of mesh')
- 1220 format(8x,'>> using metis to patition graph')
- 1230 format(8x,'>> completed graph partitioning')
-c
-      end
-c
-c ************************************************************************
-c *                                                                      *
-c *                      routine trnlproc_access                         *
-c *                                                                      *
-c *     this subroutine identifies elements which are on the border      *
-c *     between processors. The border elements are then placed in       *
-c *     groups corresponding to the processors which they access (have   *
-c *     as neighbors). This permits efficient partitioning for the ebe   *
-c *     preconditioner in parallel.                                      *
-c *                                                                      *
-c ************************************************************************
-c
-c
-      subroutine trnlproc_access
-      use patwarp_data
-      implicit integer (a-z)
-      dimension proc_access(maxprocs), access_grps(0:maxcon,maxaccgrps)
-      integer, allocatable :: invinc(:,:)
-      logical new, match_access, grp_match, local_debug
-      data local_debug / .false. /
-c
-c           first form the inverse incidence table -- given a node, what
-c           elements are attatched to it
-c
-      allocate( invinc(0:maxcon,numnod) )
-c
-      do i = 0, maxcon
-         do j = 1, numnod
-            invinc(i,j) = 0
-         enddo
-      enddo
-c
-      do elem = 1, numele
-         incptr = eleipt ( elem ) - 1
-         do node_loop = 1, elennd(elem)
-            node = eleinc(incptr+node_loop)
-            invinc(0,node) = invinc(0,node) + 1
-            invinc(invinc(0,node),node) = elem
-         enddo
-      enddo
-c
-c           now loop over all elements and determine what processors own
-c           its neighbors
-c
-c              loop over elements
-c
-      num_access_grps = 0
-      do elem = 1, numele
-         if (local_debug) write (termot,*) '>>>>>> elem, proc:',
-     &        elem, eleproc(elem)
-         num_access = 1
-         proc_access(1) = eleproc(elem)
-
-c
-c                 loop over nodes of element
-c
-         incptr = eleipt ( elem ) - 1
-         do node_loop = 1, elennd(elem)
-            node = eleinc(incptr+node_loop)
-c
-c                    loop over elements connected to node -- skip current
-c                    element
-c
-            do inv_loop = 1, invinc(0,node)
-               neighbor_elem = invinc(inv_loop,node)
-               if (elem .eq. neighbor_elem) goto 100
-c
-c                       find proc which owns element.  Add to proc_access
-c                       list (don't duplicate processors in proc_access)
-c
-               proc = eleproc(neighbor_elem)
-               new = .true.
-               do i=1, num_access
-                  if ( proc .eq. proc_access(i)) new = .false.
-               enddo
-               if (new) then
-                  num_access = num_access + 1
-                  proc_access(num_access) = proc
-               endif
-c
- 100           continue
-            end do
-         end do
-         if (local_debug) write(termot,9000) elem, eleproc(elem),
-     &        (proc_access(j),j=1, num_access)
-c
-c                 we now have list of processors which access the neighboring
-c                 elements to the current element.  identify if this set
-c                 of neighboring processors is the same as previous elements
-c                 or if it is new.
-c
-c                    If all neighbors were owned by same processor which
-c                    owns the element, then set grp = 0 (internal element).
-c
-         if ( num_access .eq. 1 ) then
-            elem_access(elem) = 0
-            goto 200
-         endif
-c
-c                    loop over access groups -- see if current proc accesses
-c                    match with defined group
-c
-         matching_grp = 0
-         do i=1, num_access_grps
-            if ( num_access .ne. access_grps(0,i)) goto 150
-c
-            grp_match = .true.
-            do j = 1, num_access
-c
-               match_access = .false.
-               do k = 1, num_access
-                  if (proc_access(j) .eq. access_grps(k,i)) then
-                     match_access = .true.
-                  endif
-               enddo
-c
-               if ( .not. match_access ) then
-                  grp_match = .false.
-               endif
-c
-            enddo
-c
-            if ( grp_match) then
-               matching_grp = i
-            endif
-c
-  150       continue
-         end do
-c
-c                    if matching grp found, set elem_access to the grp
-c                    number. otherwise, greate a new access grp.
-c
-         if ( matching_grp .gt. 0 ) then
-c
-            elem_access (elem) = matching_grp
-c
-         else
-c
-            num_access_grps = num_access_grps + 1
-            elem_access (elem) = num_access_grps
-c
-            if ( num_access_grps .gt. maxaccgrps) then
-               write (termot,9100)
-               stop
-            endif
-c
-            access_grps(0,num_access_grps) = num_access
-            do i=1, num_access
-               access_grps(i, num_access_grps) = proc_access(i)
-            end do
-c
-         endif
-c
- 200     continue
-         if (local_debug) write (termot,'(9x,"group:",i6)')
-     &        elem_access(elem)
-      enddo
-c
-      if (debug) then
-         write (termot,*) '>>> access groups:'
-         do i=1, num_access_grps
-            write (termot,*) '  -> grp:',i,'  accesses procs:'
-            write (termot,'(10x,20i3)') (access_grps(j,i),j=1,
-     &           access_grps(0,i))
-         end do
-      endif
-c
- 9000 format ("  elem:",i6," owner proc:",i6," access procs:",20i6)
- 9100 format ('>>> FATAL ERROR: exceeded number of access groups.',/,
-     &        '>>>      recompile patwarp with maxaccgrps set larger.',
-     &        /)
-      return
-      end
-c     ****************************************************************
-c     *                                                              *
-c     *                      subroutine getgrp                       *
-c     *                                                              *
-c     *     this subroutine partitions elements into groupings of    *
-c     *     similar elements.                                        *
-c     *                                                              *
-c     ****************************************************************
-c
-      subroutine getgrp
-      use patwarp_data
-      implicit integer (a-z)
-      integer, allocatable :: grprm(:,:)
-      logical newgrp
-c
-c
-c                       the element properties defining similarity are:
-c
-c                                1) type of element
-c                                2) configuration number
-c
-c
-      if (debug) write (termot,*) '>>> in getgrp'
-      allocate( grprm(4,mxnmgp) )
-c
-c
-      numgrp = 0
-      do i = 1, mxnmgp
-       grpnum(i)  = 0
-       grphead(i) = 0
-       grptail(i) = 0
-      end do
-      grplst(1:numele) = 0
-c
-c                    check over all elements
-c
-      do elem = 1, numele
-         if (debug) write (termot,'("  working on elem ",i6)') elem
-c
-c                           check if element fits in a group
-c
-         if ( elem .eq. 1 ) then
-            newgrp = .true.
-         else
-            do grp = 1, numgrp
-               if ( (grprm(1,grp).eq.eletyp(elem)) .and.
-     &              (grprm(2,grp).eq.elecfg(elem)) .and.
-     &              (grprm(3,grp).eq.eleproc(elem)) .and.
-     &              (grprm(4,grp).eq.elem_access(elem))) then
-                  if (debug) write (termot,*) ' elem matches'
-                  grpnum(grp)= grpnum(grp)+1
-                  grplst(grptail(grp)) = elem
-                  grptail(grp) = elem
-                  newgrp = .false.
-                  go to 10
-               else
-                  if (debug) write (termot,*) ' elem doesnt match'
-                  newgrp = .true.
-               end if
-            end do
-  10     end if
-c
-c                          if needed, create a new group
-c
-         if ( newgrp ) then
-            numgrp = numgrp+1
-            if (debug) write (termot,'("  making group ",i4)') numgrp
-            if ( numgrp .gt. mxnmgp ) then
-               write (termot,9000) mxnmgp
-               stop
-            end if
-            grpnum(numgrp)  = 1
-            grphead(numgrp) = elem
-            grptail(numgrp) = elem
-            grprm(1,numgrp) = eletyp(elem)
-            grprm(2,numgrp) = elecfg(elem)
-            grprm(3,numgrp) = eleproc(elem)
-            grprm(4,numgrp) = elem_access(elem)
-         end if
-c
-      end do
-c
-      if ( debug ) then
-         do i=1, numgrp
-            write (termot,*) '>>> for group ',i
-            write (termot,'("   num_elems:",i4," type:",i3," cfg:",i3,
-     &           " proc:",i3," access grp:",i3)') grpnum(i),
-     &           grprm(1,i), grprm(2,i), grprm(3,i), grprm(4,i)
-            write (termot,*) '  head, tail of group:',grphead(i),
-     &           grptail(i)
-         enddo
-         write (termot,*) '>>> here is the pointer structure:'
-         do i=1, numele
-            write (termot,*) '     elem: ',i,' ptr:', grplst(i)
-         enddo
-      end if
-c
-c
- 9000 format ('>>>>>> ERROR: this version of patwarp only supports ',
-     &        i6,' groups.',
-     &      /,'              Recompile with a larger value for mxnmgp.')
-
-      return
-      end
-c     ****************************************************************
-c     *                                                              *
-c     *                      subroutine gtblrb                       *
-c     *                                                              *
-c     *     this subroutine sets a vector of block numbers for each  *
-c     *     element in a grouping of similar elements. elements in a *
-c     *     given block are non-conflicting by red-black ordering.   *
-c     *                                                              *
-c     ****************************************************************
-c
-      subroutine gtblrb(nel,nnode,maxbsz,grp,iblock)
-      use patwarp_data
-      implicit integer (a-z)
-      dimension iblock(1)
-      integer, allocatable :: inode(:)
-      logical restart
-c
-c
-      if (debug) write (termot,*) '>>>> in gtblrb'
-      allocate( inode(numnod) )
-c
-      do i= 1,numele
-         iblock(i)= 0
-      enddo
-      restart = .true.
-c
- 10   continue
-c
-c                find the first element in the group not
-c                previously assigned to a block.
-c
-      if ( restart ) then
-         elem = grphead(grp)
-         restart = .false.
-      else
-         elem = grplst(elem)
-c
-c                    if elem=0, then all elements in group have been
-c                     assigend to a block; return.
-c
-         if ( elem .eq. 0 ) goto 9999
-      endif
-c
-c                    if elem already assigned, skip to next element in group
-c
-      if (iblock(elem).ne.0) goto 10
-c
-c                    start a new block.
-c
-      nelblk= nelblk+1
-      iblock(elem)= nelblk
-      ibsize= 1
-c
-      do i = 1,numnod
-         inode(i) = 0
-      enddo
-c
-      do i = 1,nnode
-         inode(eleinc(eleipt(elem)+i-1))= 1
-      endd o
-c
-c                 loop through remaining elements and test un-
-c                 assigned elements for inclusion in the
-c                 current block.
-c
- 20   continue
-      elem = grplst(elem)
-c
-c                    if elem=0, then no more elements to add to block.
-c                    check for a new block
-c
-      if ( elem .eq. 0 ) then
-         restart = .true.
-         goto 10
-      endif
-c
-c                    if previously assigned, skip to next elem in group
-c
-      if (iblock(elem).ne.0) goto 20
-c
-c                    the current element is not blocked. test
-c                    for common nodes with any element previously
-c                    assigned to the current block.
-c
-      isum = 0
-      do i = 1,nnode
-c
-c                       If transition element are being processed then
-c                       zero incidences must not be counted as shared node
-c
-         if (eleinc(eleipt(elem)+i-1) .ne. 0) then
-            isum = isum+inode(eleinc(eleipt(elem)+i-1))
-         end if
-      end do
-c
-c                    if isum is not zero, then skip to next elem in group
-c
-      if (isum.ne.0) goto 20
-c
-c                    the current element does not conflict. add
-c                    to block.
-c
-      iblock(elem)= nelblk
-      ibsize= ibsize+1
-      do i = 1,nnode
-         inode(eleinc(eleipt(elem)+i-1))= 1
-      end do
-c
-c                    check for overflow of the maximum block
-c                    size.
-c
-      if (ibsize.eq.maxbsz) then
-         restart = .true.
-         go to 10
-      endif
-c
-c                    keep processing elements for this block
-c
-      goto 20
-c
-c
- 9999 continue
-c
-      if (debug) then
-         write (termot,*) ' writing iblock:'
-         do i = 1, numele
-            write (termot,'("iblock(",i5,") = ",i4)')i,iblock(i)
-         enddo
-         write (termot,*) '<<<< leaving gtblrb'
-      endif
-c
-      return
-      end
-
+c 
+      end 
 c ************************************************************************
 c *                                                                      *
 c *   routine  trnlin -- initialize variable for the warp3d trans.       *
@@ -4674,6 +3596,7 @@ c *                                                                      *
 c ************************************************************************
 c
 c
+
       subroutine trnlin
       use patwarp_data
       implicit integer (a-z)
@@ -4698,6 +3621,8 @@ c
 c ************************************************************************
 c *                                                                      *
 c *  routine trnlnd -- write nodal coordinate data in warp3d format      *
+c *                                                                      *
+c *  modified by: jp            7-13-99                                  *
 c *                                                                      *
 c ************************************************************************
 c
@@ -4837,7 +3762,7 @@ c
       use patwarp_data
       implicit integer (a-z)
       dimension  nod(50), tnod(50),  wedge15(15)
-      logical    dupl, hex, tet, wedge, bar, valid_etype
+      logical    dupl, hex, tet, wedge,bar, valid_etype
       data wedge15 / 1,2,3,4,5,6,7,8,9,13,14,15,10,11,12 /
 c
 c            write element incidence data in warp3d format.
@@ -5230,6 +4155,8 @@ c *         note that warp3d only handles 3 constraints, because it      *
 c *         does not handle moments. thus the variables are changed      *
 c *         from 6 dof to 3 dof.                                         *
 c *                                                                      *
+c *   modified by: rhd   10-11-12                                        *
+c *                                                                      *
 c ************************************************************************
 c
 c
@@ -5495,13 +4422,15 @@ c ************************************************************************
 c *                                                                      *
 c *      routine trneload -- write distributed loads on elements         *
 c *                                                                      *
+c *                       written by : rhd 12/26/01                      *
+c *                                                                      *
 c ************************************************************************
 c
 c
       subroutine trneload(loading_case,fload)
       use patwarp_data
       implicit integer (a-z)
-      logical   bitchk, local_debug, hex, tet, wedge, valid_etype, bar
+      logical   bitchk, local_debug, hex, tet, wedge, bar, valid_etype
       character * 8 ldname
       integer   pspc(17), pointer, face_map(6)
       integer, allocatable :: elnewo(:)
@@ -5510,7 +4439,7 @@ c
       dimension ivals(5), rvals(5)
       equivalence ( rvals, ivals )
 c
-      data face_map / 6,   5,   3,   4,   1,   2 /
+      data face_map / 6,   5,   3,   4,   1,   2 / ! Patran -> WARP3D
 c
       local_debug = .false.
       allocate( elnewo(numele) )
@@ -5745,10 +4674,13 @@ c     ****************************************************************
 c     *                                                              *
 c     *                  routine tet_loaded_face                     *
 c     *                                                              *
+c     *                written by : rhd  12/26/01                    *
+c     *                                                              *
 c     *     given local corner nodes on a tet face, return the       *
 c     *     loaded face number                                       *
 c     *                                                              *
 c     ****************************************************************
+c
 c
       subroutine tet_loaded_face( tface, flags )
       implicit integer (a-z)
@@ -5803,6 +4735,10 @@ c     ****************************************************************
 c     *                                                              *
 c     *           routine trnlbc -- originally part of genout        *
 c     *                                                              *
+c     *                       written by : bh                        *
+c     *                                                              *
+c     *            modified by rhd : 10/11/12                        *
+c     *                                                              *
 c     *     this subroutine writes out the blocking command          *
 c     *                                                              *
 c     ****************************************************************
@@ -5811,331 +4747,25 @@ c
       use patwarp_data
       implicit integer (a-z)
 c
-c           writes out the block numbers, the number of elements in each
-c              block, and the first element in each block.  If the file
-c              being generated is for parallel computation, then add the
-c              processor number which owns the block as the last number.
+c           automatic blocking in threads only, just put blocking
+c           command in main input file - not in the separate
+c           incidences file
 c
-c
-      if( block_method .eq. 1 ) then
-         write(ofile,9210) blksz
-         write(ofile,9200)
-         return
-      end if
-c
-      if( scalar ) then
-         write(ofile,9000)
-      else
-         write(ofile,9010)
-      endif
-      write(ofile,9220)
-c
-      felem = 0
-      span  = 1
-c
-      do blk = 1,nelblk
-c
-         oldspn = span
-         span   = elblks(0,blk)
-         felem  = felem+oldspn
-         if( parallel ) then
-            write(ofile,9100) blk, span, felem, blkproc(blk)
-         else
-            write(ofile,9100) blk, span, felem
-         endif
-c
-      end do
-c
+      write(ofile,9210) blksz
       write(ofile,9200)
-c
       return
+c
  9000 format ('c',/,'c',/,'*echo off',/,'blocking',
-     &    ' $ scalar - elems in blk share nodes')
- 9010 format ('c',/,'c',/,'*echo off',/,'blocking',
-     &    ' $ vectorized - no elems in blk share nodes')
- 9100 format (4i8)
+     &    ' $ scalar: only sparse solver allowed')
  9200 format('c ',/,'*echo on')
  9210 format('c',/,'blocking automatic size = ',i3 )
- 9220 format('c     <blk>  <# elems> <1st elem> <domain>')
-      end
-c
-c     ****************************************************************
-c     *                                                              *
-c     *         routine trnlnf -- originally subroutine nuneut       *
-c     *                                                              *
-c     *     this subroutine creates a patran neutral file containing *
-c     *     the reordered elements.                                  *
-c     *                                                              *
-c     ****************************************************************
-c
-      subroutine trnlnf
-      use patwarp_data
-      implicit integer (a-z)
-      integer dspmsk(6), pspc(6), lodmsk(6)
-      logical bitchk
-      real dspbuf(6), lodbuf(6)
-c
-      out = 16
-c
-      if (nptfle.eq.'none') goto 9999
- 10   continue
-c
-c
-c                          eight question asked (q_num = 8)
-c                          'make an updated patran neutral file...'
-c                          ynanswers(8) = 0, => no
-c
-c                          if creating new neutral file, process file
-c                          name and open file
-c
-
-      q_num = 8
-c
-      if ( ynanswers(q_num) .eq. 0 )go to 9999
-c
-      call stripf(nptfle)
-      if (nptfle(1:1).eq.' ') nptfle = 'newpat.out'
-c
-      open(out,file=nptfle,status='unknown',err=9998)
-c
-c             start writing packets
-c
-c               => output title -- packet 25
-c
-      write(out,9000) 25,0,0,1,0,0,0,0,0
-      write(out,9010) ustitl
-c
-c               => output creation date & time and release number
-c                                        -- packet 26
-c
-      write(out,9000) 26,0,0,1,numnod,numele,0,0,0
-      write(out,9020) date,time,versn
-c
-c               => output nodal coordinates -- packet 01
-c
-      do node = 1, numnod
-         write(out,9000) 1,node,0,2,0,0,0,0,0
-         write(out,9030) coord(1,node), coord(2,node), coord(3,node)
-         do i=1,6
-            pspc(i) = 0
-            if (bitchk(nodpcn(node),i)) pspc(i)= 1
-         enddo
-         write(out,9040) nodcon(node), nodtyp(node), nodndf(node),
-     &        nodcfg(node), nodcid(node), (pspc(i), i=1,6)
-      end do
-c
-c               => output element incidences, etc -- packet 02. for
-c                  9, 12, 15 node hex transition elements, write as
-c                  8 node elements.
-c
-      do elem = 1, numele
-         oldele     = elreno(elem)
-         etype      = eletyp(oldele)
-         num_enodes = elennd(oldele)
-c
-c            Types of elements: in warp all elements are solids
-c             iv = 5   tets (patwarp element types 11,12)
-c             iv = 7   wedges (patwarp element types 21, 22)
-c             iv = 8   hexes (patwarp element types 1-5)
-c
-         select case ( etype )
-         case ( 1:5 )
-            pat_etype = 8
-            if ( etype .eq. 4 ) then
-               num_enodes = 20
-            else
-               num_enodes = 8
-            endif
-         case ( 11,12 )
-            pat_etype = 5
-         case ( 21, 22 )
-            pat_etype = 7
-         case default
-            write(termot,9200)  elem
-            stop
-         end select
-c
-         nlines = 1 + (num_enodes-1)/10 + 1
-         write(out,9000) 2,elem,pat_etype,nlines,elenad(oldele),0,0,0,0
-         write(out,'(4i8,3e16.9)') num_enodes,elecfg(oldele),
-     &        elepid(oldele),elecid(oldele),(eleang(i,oldele),i=1,3)
-         write(out,'(10i8)') (eleinc(eleipt(oldele)+i-1),
-     &        i=1,num_enodes)
-      end do
-c
-c               => output nodal loadings -- packet 07
-c                       Note: this skips the temp loads;
-c                         ptrs = nlodtb(load set, {4,5})
-c
-      do nowset = 1,maxset
-         lodset = nlodtb(nowset,1)
-         if ( lodset .eq. 0) goto 20
-         ptr = nlodtb(nowset,2)
-         if ( ptr .eq. 0 ) go to 20
- 15      continue
-         node = nodval(ptr)
-         fptr = nodptr(ptr)
-         ptr  = ptr + 1
-         mask = nodval(ptr)
-         ptr  = ptr + 1
-c
-c                      build local vector of loads and labels.
-c                         Note: warp3d dooesn't handle
-c                         moments, but we run all six dofs
-c                         anyway so the mask is set correctly
-c
-         ldof = 0
-         do dof = 1, 6
-             lodmsk(dof) = 0
-             lodbuf(dof) = 0.0
-             if ( bitchk( mask, dof ) ) then
-                   ldof = ldof + 1
-                   lodbuf(ldof) = rnodval(ptr)
-                   ptr = ptr + 1
-                   lodmsk(dof) = 1
-             end if
-         end do
-         write(out,9000) 7, node, nowset, 2, 0,0,0,0,0
-         write(out,9070) 0,(lodmsk(dof), dof=1,6)
-         write(out,9100) (lodbuf(dof), dof=1,ldof)
-c
-c                        process next node if one in in the list.
-c
-         ptr = fptr
-         if ( ptr .gt. 0 ) go to 15
- 20   enddo
-c
-c               => output nodal constraints  -- packet 08
-c                         note that we run all 6 dofs despite the
-c                         fact warp3d only handles 3; this is to
-c                         set the constraint mask correctly
-c
-c
-      if ( nxtnls .eq. 1 ) goto 1000
-      limit = nxtnls - 1
-      do slot = 1, limit
-         node = ndcnls(slot,2)
-         ptr  = ndcnls(slot,1)
-         mask = ndcndt(ptr)
-         ptr = ptr + 1
-         cdof = 0
-         do dof = 1,6
-            dspmsk(dof) = 0
-            dspbuf(dof) = 0.0
-            if (bitchk(mask,dof)) then
-               cdof = cdof+1
-               dspbuf(cdof) = rndcndt(ptr)
-               ptr = ptr+1
-               dspmsk(dof) = 1
-            endif
-         enddo
-         if ( debug ) write(termot,9030) node, ptr, mask
-         write(out,9000) 8,node,1,2,0,0,0,0,0
-         write(out,9070) 0,(dspmsk(x),x=1,6)
-         write(out,9100) (dspbuf(x),x=1,cdof)
-      enddo
- 1000 continue
-c
-c               => end the neutral file -- packet 99
-c
-      write(out,9000) 99,0,0,1,0,0,0,0,0
-c
-c
-      close(out,status='keep')
-      write(termot,8010) nptfle(1:50)
-c
-      go to 9999
-c
- 9998 write(termot,2000)nptfle
-      write(termot,2100)
-c
-c
- 9999 return
-c
- 2000 format (' >>unable to open file named ', a80)
- 2100 format (/)
- 8010 format(14x,'>> updated neutral file created..',
-     & /,14x,    '   name: ',a50)
- 9000 format (I2,8I8)
- 9010 format (a80)
- 9020 format (a12,a8,a12)
- 9030 format (3e16.9)
- 9040 format (i1,1a1,i8,i8,i8,2x,6i1)
- 9050 format (i8,i8,i8,i8,3e16.9)
- 9060 format (10i8)
- 9070 format (i8,6i1)
- 9080 format (1e16.9)
- 9100 format (5e16.9)
- 9200 format(1x,'>> element id: ',i8,' has unsupported type..' )
-      END
-c     ****************************************************************
-c     *                                                              *
-c     *         routine trnlpo                                       *
-c     *                                                              *
-c     *     this subroutine creates a patran output file showing     *
-c     *     the element processor assignment and the blocking        *
-c     *     of the model.                                            *
-c     *                                                              *
-c     ****************************************************************
-c
-      subroutine trnlpo
-      use patwarp_data
-      implicit integer (a-z)
-c
-      out = 16
-c
- 10   continue
-c
-c
-c                    ninth question asked (q_num = 9)
-c                    'make a patran-readable results file...'
-c                    ynanswers(9) = 0, => no, otherwise => yes
-c
-c                    if yes, process title, open, create...
-c
-      q_num = 9
-      if( ynanswers(q_num) .eq. 0 ) go to 9999
-c
-      call stripf(resfile)
-c        rwh -- modification
-      if (resfile(1:1).eq.' ') resfile = 'metis_pat_info.els'
-c
-c                write elem processor assignment file first
-c
-      open(out,file=resfile,status='unknown',err=9998)
-c
-      write (out, '(80a1)') (resfile(i:i),i=1,80)
-      write (out, '(i5)') 2
-      write (out, '(80a1)') (resfile(i:i),i=1,80)
-      write (out, '(80a1)') (resfile(i:i),i=1,80)
-c
-      felem = 1
-      do blk = 1, nelblk
-         span = elblks(0,blk)
-         do elem = felem, felem + span - 1
-            write (out, '(2i8,/,2e13.7)') elem, 8,
-     &           float(eleproc(elreno(elem))), float(blk)
-         enddo
-         felem = felem + span
-      enddo
-c
-      close(out,status='keep')
-c
-      go to 9999
-c
- 9998 write(termot,*) ' unable to open file named ', resfile
-      write(termot,*)
-      goto 9999
-c
-c
- 9999 return
-c
-c
       end
 c
 c     ****************************************************************
 c     *                                                              *
 c     *                    routine order1215                         *
+c     *                                                              *
+c     *                 written by : cm   08/02/97                   *
 c     *                                                              *
 c     *     This subroutine performs two tasks:                      *
 c     *     task = 1  Determines the number of non zero nodes only   *
@@ -6143,7 +4773,10 @@ c     *     task = 2  reorders the incidences for a 9, 12, 15        *
 c     *               and 20 node element to match the warp          *
 c     *               convention.                                    *
 c     *                                                              *
+c     *                                                              *
 c     ****************************************************************
+c
+c
 c
       subroutine order1215 ( n, nnode, task )
       implicit integer (a-z)
@@ -6489,4 +5122,3 @@ c
       n(20) = 0
       return
       end
-
