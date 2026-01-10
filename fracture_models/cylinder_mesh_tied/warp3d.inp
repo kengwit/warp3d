@@ -1,0 +1,130 @@
+!
+!
+!     complex example of mesh tieing in a cracked cyclinder
+!     =====================================================
+!
+!     Units:  kips, in.
+!
+!     Geometry:
+!      o  wall thickness 1.0 in.
+!      o  length 21.0 in.
+!      o  generator axis: global X-axis
+!      o  internal radius 9.0 in.
+!      o  external, circumferential surface crack (semi-elliptical)
+!      o  depth a 0.5 in.
+!      o  length 2c 1.0 in.
+!
+!     Material:
+!      o  linear-elastic, isotropic
+!
+!     Model:
+!      o entire cyclinder modeled
+!      o 20 node hex elements, 2x2x2 integration
+!      o refined crack region connected to topologically mismatched
+!        coarse mesh region on 4 surfaces using mesh tieing
+!      o model can be run (i.e. is not singular) w/o mesh tieing if 
+!        desired to study performance
+!      o X=0 plane constraint to u=0, minumim of other nodes
+!        constrained to prevent rigid body motion
+!
+!     Crack:
+!      o mesh has collapsed hex-20 elements along front
+!      o mid-side nodes re-positioned at 1/4 pt location on edge
+!      o elements have repeated nodes in the incidences to model
+!        linear-elastic singularity
+!        
+!      
+ structure vessel
+  number of nodes 35378 elements 7504
+  material mat1
+    properties  mises e 30000 nu 0.3 yld_pt 100.0e10  n_power   10
+  material mat2
+    properties  mises e 30000 nu 0.3 yld_pt 100.0e10  n_power   10
+  elements
+!    
+!           elements in the refined crack region
+!
+  1-6864 type q3disop linear material mat1,
+                   order 2x2x2  center_output short     
+!
+!           elements in remainder of cylinder tied to crack region
+!
+  6865-7504 type q3disop linear material mat2,
+                   order 2x2x2 center_output short  
+!
+ *input from file "incid_coords.inp"
+ blocking  automatic 
+! 
+ *input from file "mesh_tieing.inp"
+!
+ loading unit_axial_stress
+  element loads
+  7249  7250  7251  7252  7253  7254  7255  7256,
+  7257  7258  7259  7260  7261  7262  7263  7264,
+  7265  7266  7267  7268  7269  7270  7271  7272,
+  7273  7274  7275  7276  7277  7278  7279  7280,
+  7377  7378  7379  7380  7381  7382  7383  7384,
+  7385  7386  7387  7388  7389  7390  7391  7392,
+  7393  7394  7395  7396  7397  7398  7399  7400,
+  7401  7402  7403  7404  7405  7406  7407,
+  7408 face 6 pressure -1.0
+!
+ constraints
+ 31451 31452 31453 31475 31476 31477 31478 31479,
+ 31480 31481 31482 31483 31484 31485 31486 31487,
+ 31488 31489 31490 31491 31492 31493 31494 31495,
+ 31496 31497 31498 31499 31500 31501 31502 31503,
+ 31504 31505 31506 31508 31509 31510 31511 31544,
+ 31545 31546 31547 31569 31570 31571 31638 31735,
+ 31736 31737 u 0.0
+ 31762  u 0.0 v 0.0 w 0.0
+ 31857 u 0.0 v 0.0
+ 31763 31764 31765 31766 31767 31768 31769 31770,
+ 31771 31772 31773 31774 31775 31776 31777 31778,
+ 31779 31780 31781 31782 31783 31784 31785 31786,
+ 31787 31788 31789 31790 31791 31792 31793 31794,
+ 31795 31796 31797 31798 31800 31801 31825 31826,
+ 31827 31828 31829 31830 32575 32576 32577 32579,
+ 32580 32581 32583 32584 32585 32653 32654 32655,
+ 32656 32657 32658 32659 32660 32661 32663 32664,
+ 32666 32667 32669 32670 32672 32673 32675 32676,
+ 32677 32678 32679 32681 32682 32683 32684 32686,
+ 32687 32689 32690 32691 32693 32694 32695 32697,
+ 32698 32700 32701 32703 32704 32705 32707 32708,
+ 32709 32711 32713 32714 32716 32717 32719 32720,
+ 32722 32724 32726 32727 32729 32730 32732 32734,
+ 32735 32737 32738 32740 32741 32743 32744 32745,
+ 32753 32755 32857 32858 32860 33091 33092 33093,
+ 33356 33357 33358 33359 33361 33362 33364 33365,
+ 33437 33438 33439 33440 33441 33442 33443 33444,
+ 33445 33446 33447 33448 33449 33450 33451 33452,
+ 33453 33454 33455 33456 33457 33458 33459 33460,
+ 33461 33462 33464 33465 33466 33467 33469 33470,
+ 33472 33473 33474 33475 33477 33478 33479 33481,
+ 33482 33484 33486 33488 33490 33492 33493 33495,
+ 33497 33498 33500 33502 33503 33505 33507 33508,
+ 33510 33511 33513 33514 33516 33517 33519 33520,
+ 33597 33599 33601 33603 u 0.0
+
+ loading pull
+   nonlinear
+    step 1 2 unit_axial_stress 50
+! 
+ nonlinear analysis parameters
+   display tied mesh mpcs off
+   solution technique direct sparse 
+   maximum iterations 5
+   minimum iterations 1
+   convergence test norm res tol 0.01
+   nonconvergent solutions continue
+   time step 1.0e06
+   trace solution on
+! 
+!    compute step 1 and make a restart file.
+!    J and K values computed in restart
+!    (this tests lots of the code!)
+!
+ compute displacements for loading pull step 1
+ save to "cylinder.db"
+!
+ stop
