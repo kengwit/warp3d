@@ -1,0 +1,99 @@
+!
+!
+!   ***  CRACK GROWTH ANALYSIS  ***
+!
+!   Gurson cell model growth of a surface crack in a panel
+!   loaded by combined tension and bending. Model and experimental
+!   results from Jonas Faleskog's PhD thesis.
+!
+!
+!   UNITS : m, N, Pa
+!
+!  surface cracked plate --- tension
+!   t = 50 mm, W = 151.75 mm, L=200 mm, c = 49 mm, a = 21.43 mm
+!  (one quarter of the plate is modelled)
+!
+!   8-node elements
+!     Displacement Control
+!     Static Loading
+!     1120 (28*40) cells
+!     De = 0.5D = 0.15 mm
+!
+!     Uses 240 load steps to reach maximum crack extension of
+!     several mm at deepest point on front.
+!     Kills 905 elements along front.
+!
+!
+ structure sct_growth
+!
+ material gurson_layer
+  properties gurson  e  2.0E+11 nu 0.3 yld_pt 4.0E+8 n_power  10.0,
+           killable f_0 0.0035 q1 1.46 q2 0.931 q3 2.1316  rho 0.0
+!
+ material steel
+  properties mises e 2.0E+11 nu 0.3 yld_pt 4.0E+8 n_power 10.0 rho 0.0
+!
+ number of nodes 15002 elements 13077
+!
+ elements
+   1-1120 type l3disop geonl material gurson_layer,
+              order 2x2x2 bbar nodpts short
+!
+   1121-13077 type l3disop geonl material steel,
+              order 2x2x2 bbar nodpts short
+!
+ *input from "coords_incid.inp"
+!
+ blocking automatic 
+!
+ *input from "constraints.inp" 
+!
+ loading predisp
+  nonlinear
+    step 1-17  constraints 0.05
+    step 18-500 constraints 0.025
+!
+ output model flat patran convention text file "model"
+!
+ nonlinear analysis parameters
+   solution technique direct sparse
+   maximum iterations 5
+   minimum iterations 1
+   convergence test norm res tol 0.01
+   nonconvergent solutions stop
+   adaptive on
+   line search on
+   batch messages off
+   cpu time limit off
+   material messages off
+   bbar stabilization factor 0.0
+   consistent q-matrix off
+   time step 1.0e06
+   trace solution on
+   extrapolate on
+!
+ crack growth parameters
+   critical porosity 0.2
+   type of crack growth gurson
+   print status on order 1-1120
+   force release type traction
+   cell height  .00015
+   release fraction 0.10
+   crack plane normal y coordinate 0.0
+   adaptive load control on maximum porosity change 0.02
+!
+!  perform periodic saves for possible restarts.
+!
+ output J-values use file "get_j_values.inp" steps 10-500 by 10
+ output commands use file "get_output.inp" steps 1-500
+!
+ compute displacements for load predisp steps 50
+ save
+ compute displacements for load predisp steps 100
+ save
+ compute displacements for load predisp steps 150
+ save
+ compute displacements for load predisp steps 200
+ save
+! 
+stop 
