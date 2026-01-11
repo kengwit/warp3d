@@ -1,23 +1,26 @@
 
-Last Update: June 28, 2020
---------------------------
+Last Update: November 17, 2025
+------------------------------
+
+Dr. Mark Messner is the key author of this software.
+Now at Argonne National Laboratory.
 
 See also: Workflow_WARP3D_to_ParaView on Downloads page of
           www.warp3d.net
 
 
-Python 3.5.x or later
+Python 3.5.x or later.
 
 warp3d2exII is a stand-alone Python program (see also last Section here).
-(a copy is also named pat2xii to remain the older naming for a while longer)
+(a copy named pat2xii is sometimes created to remain the older 
+naming for a while longer).
 
 warp3d2exii reads in a flat model description file and flat results files
-
-And generates an Exodus II (.exo) file.
+and generates an Exodus II (.exo) file.
 
 The Exodus II format is compatible with Paraview, a free 
 post-processing visualization software, and many other pre-
-and post- processing software packages (e.g. Cubit).
+and post-processing software packages (e.g. Cubit).
 
 The "flat" result files were a new feature of WARP3D starting at 
 release 17.5.3.
@@ -38,10 +41,12 @@ The flat model description file is generated with input
 commands of the form
 
   output model flat patran convention file <file name>  
+  
+Patran convention refers to the ordering of nodes on elements.
 
-================================================================================
+=========================================================================
 Using the warp3d2exii Python program 
-================================================================================
+=========================================================================
 
 warp3d2exii is a Python program - it is Python source code executed by
 your runtime Python environment.
@@ -106,7 +111,7 @@ Efficiency:
    Reading of a flat model description file is very fast.   
 
    Reading of flat results files in stream format is very fast. Reading
-   text results files is considerably slower
+   text results files is considerably slower.
    
    Writing of the final .exo file is reasonably fast with this version.
     
@@ -120,10 +125,10 @@ Python Requirements for warp3d2exii
 ================================================================================
 
 warp3d2exii is built and tested on Python 3.5.x and later
-on Windows, Linux and Mac OS X.
+on Windows, Linux and macOS.
 
 You will need a working Python environment to use warp3d2exii (in a
-Bash shell for Linux and OS X and in the command prompt for
+Bash shell for Linux and macOS and in the command prompt for
 Windows)
 
 See the QuickStart documents in the WARP3D distribution for your platform
