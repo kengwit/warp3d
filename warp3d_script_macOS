@@ -4,14 +4,14 @@
 #    Run WARP3D on macOS -- OpenMP only + MKL sparse solver
 #    =====================================================
 #
-#    usage: warp3d_mac   ( number of threads )   ( < input ) ( > output )
+#    usage: warp3d_script_macOS ( number of threads )   ( < input ) ( > output )
 #
 #           ( ) -- optional
 #
 #
 if [ $# = "0" ]; then
    echo ">> Usage:"; echo " "
-   echo " warp3d_mac ( <parms> )     ( < input ) ( > output )"; echo " "
+   echo " warp3d_script_macOS ( <parms> )     ( < input ) ( > output )"; echo " "
    echo " <parms>: <no. of threads>  "
    echo "  ( )  implies optional"
    echo " "
