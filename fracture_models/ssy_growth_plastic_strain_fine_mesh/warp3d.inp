@@ -107,7 +107,7 @@
      release steps 1
      adaptive load control off plastic strain change 0.015,
          alpha_min 0.75 alpha_max 2.0 allowable_release 240
-      print status top 20 elements
+      print status on top 20
       killed element limit 5000
       stop if killed elements on 1599
      smcs states on stream steps 1-10000 by 1
