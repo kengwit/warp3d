@@ -809,7 +809,6 @@ c
       k1         = num_enodes
       k2         = 2*num_enodes
 c
-!DIR$ VECTOR ALIGNED
       do enode = 1, num_enodes
          e_coord(1,enode) = scoord(cdest(enode,rel_elem))
          e_coord(2,enode) = scoord(cdest(enode+k1,rel_elem))
@@ -868,7 +867,6 @@ c
 c
 
       if( process_swd_derivs ) then
-!DIR$ VECTOR ALIGNED
         do enode = 1, num_enodes
           snode = incid(incpos+enode-1)
           elem_nod_swd(enode) = swd_at_nodes(snode)
@@ -878,7 +876,6 @@ c
       if( process_strain_derivs ) then
         do enode = 1, num_enodes
           snode = incid(incpos+enode-1)
-!DIR$ VECTOR ALIGNED
           elem_nod_strains(1:6,enode) = strain_at_nodes(1:6,snode)
         end do
       end if
@@ -886,7 +883,6 @@ c
       if( process_grad_derivs ) then
         do enode = 1, num_enodes
           snode = incid(incpos+enode-1)
-!DIR$ VECTOR ALIGNED
           elem_nod_displ_derivs(1:9,enode) =
      &               displ_grad_at_nodes(1:9,snode)
         end do
@@ -903,7 +899,6 @@ c
       elem_temps = .false.
       if( temperatures_on_model ) then
         elem_uniform_temp = temper_elems(elemno)
-!DIR$ VECTOR ALIGNED
         do enode = 1, num_enodes
          snode = incid(incpos + enode - 1)
          e_node_temps(enode) = temper_nodes(snode) + elem_uniform_temp
@@ -913,7 +908,6 @@ c
         if( allocated( snode_alpha_ij ) ) then
          do enode = 1, num_enodes
           snode = incid( incpos + enode - 1 )
-!DIR$ VECTOR ALIGNED
           e_alpha_ij(1:6,enode) = snode_alpha_ij(snode,1:6)
          end do
         end if
@@ -965,7 +959,6 @@ c
       eps_offset = (rel_elem - 1) * nstr * num_gpts
       associate( eps => eps_n_blocks(blk)%ptr )
 c
-!DIR$ VECTOR ALIGNED
       do gpn = 1, num_gpts
          e_strain(1,gpn) = eps(eps_offset + 1)
          e_strain(2,gpn) = eps(eps_offset + 4)/two

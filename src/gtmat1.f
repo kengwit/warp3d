@@ -335,9 +335,7 @@ c
 c           initialize the jacobian matrix and its inverse for this
 c           gauss point.
 c
-!DIR$ VECTOR ALIGNED
       jac  = zero  ! just zero entire arrays - faster
-!DIR$ VECTOR ALIGNED
       gama = zero
 c
 c           calculate the jacobian matrix
@@ -358,7 +356,6 @@ c         location to augment the upper left 2x2 part of
 c         the Jacobian matrix to one.
 c
         do j = 1, nnode
-!DIR$ VECTOR ALIGNED
            do i = 1, span
              jac(i,1,1) = jac(i,1,1) + nxi(j)*ce_rotated(i,j)
              jac(i,1,2) = jac(i,1,2) + nxi(j)*ce_rotated(i,nnode+j)
@@ -377,7 +374,6 @@ c         location to augment the upper left 2x2 part of
 c         the Jacobian matrix to one.
 c
         do j = 1, nnode
-!DIR$ VECTOR ALIGNED
            do i = 1, span
              jac(i,1,1) = jac(i,1,1) + nxi(j)*ce(i,j)
              jac(i,1,2) = jac(i,1,2) + nxi(j)*ce(i,nnode+j)
@@ -392,7 +388,6 @@ c           for 3-D elements compute the Jacobian matrix
 c
       if( threed_elem ) then
         do j = 1, nnode
-!DIR$ VECTOR ALIGNED
            do i = 1, span
              jac(i,1,1)= jac(i,1,1)+nxi(j)*ce(i,j)
              jac(i,1,2)= jac(i,1,2)+nxi(j)*ce(i,nnode+j)
@@ -412,7 +407,6 @@ c           actually used.
 c
       if( bar_elem .or. link_elem ) then
         do j = 1, nnode
-!DIR$ VECTOR ALIGNED
            do i = 1, span
              jac(i,1,1)= one
              jac(i,2,2)= one
@@ -423,7 +417,6 @@ c
 c
 c           calculate the determinate of the jacobian matrix
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
           j1(i)= jac(i,2,2)*jac(i,3,3)-jac(i,2,3)*jac(i,3,2)
           j2(i)= jac(i,2,1)*jac(i,3,3)-jac(i,2,3)*jac(i,3,1)
@@ -460,7 +453,6 @@ c$OMP ATOMIC READ
 c
 c           calculate the inverse of the jacobian matrix
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          gama(i,1,1)=  j1(i)/dj(i)
          gama(i,2,1)= -j2(i)/dj(i)
@@ -540,13 +532,11 @@ c
 c           initialize theta
 c
       allocate( thtemp(mxvl,mxndel,ndim) )
-!DIR$ VECTOR ALIGNED
       theta = zero ! faster to just zero entire array
 c
 c           calculate and assign the terms of theta
 c
       do j = 1, nnode
-!DIR$ VECTOR ALIGNED
          do i = 1, span
             thtemp(i,j,1)= gama(i,1,1)*nxi(j)+gama(i,1,2)*neta(j)+
      &                     gama(i,1,3)*nzeta(j)
@@ -562,7 +552,6 @@ c
       tpos2= 2*nnode
 c
       do j = 1, nnode
-!DIR$ VECTOR ALIGNED
          do i = 1, span
 c
             theta(i,1)= theta(i,1)+thtemp(i,j,1)*ue(i,j)
@@ -619,7 +608,6 @@ c
 c                       compute the deformation gradient matrix
 c                       and its determinate.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          f(i,1,1)= theta(i,1)+one
          f(i,1,2)= theta(i,4)
@@ -632,14 +620,12 @@ c
          f(i,3,3)= theta(i,9)+one
       end do
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          f1(i)= f(i,2,2)*f(i,3,3)-f(i,2,3)*f(i,3,2)
          f2(i)= f(i,2,1)*f(i,3,3)-f(i,2,3)*f(i,3,1)
          f3(i)= f(i,2,1)*f(i,3,2)-f(i,2,2)*f(i,3,1)
       end do
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          df(i)= f(i,1,1)*f1(i)-f(i,1,2)*f2(i)+f(i,1,3)*f3(i)
       end do
@@ -705,7 +691,6 @@ c
 c
 c                       compute the rotation tensor.
 c
-!DIR$ VECTOR ALIGNED
       do i= 1,span
          r(i,1,1)= f(i,1,1)*ui(i,1)+f(i,1,2)*ui(i,2)+f(i,1,3)*ui(i,4)
          r(i,1,2)= f(i,1,1)*ui(i,2)+f(i,1,2)*ui(i,3)+f(i,1,3)*ui(i,5)
@@ -767,7 +752,6 @@ c       vector forms for {d} and {D} use engineering shear strains.
 c       vector ordering is {x,y,z,xy,yz,xz}
 c
 
-!DIR$ VECTOR ALIGNED
          do i = 1, span
             q(i,1,1)= r(i,1,1)**2
             q(i,1,2)= r(i,2,1)**2
@@ -821,7 +805,6 @@ c       vector ordering is {x,y,z,xy,yz,xz}. this [q] matrix
 c       is the transpose of the one above.
 c
 
-!DIR$ VECTOR ALIGNED
          do i = 1, span
             q(i,1,1)= r(i,1,1)**2
             q(i,1,2)= r(i,1,2)**2
@@ -879,7 +862,6 @@ c       vector ordering is {x,y,z,xy,yz,xz}. this [q] matrix
 c       is the transpose of the one above.
 c
 
-!DIR$ VECTOR ALIGNED
          do i = 1, span
           rbar(i,1,1) = r(i,1,1)
           rbar(i,1,2) = r(i,2,1)
@@ -893,7 +875,6 @@ c
          end do
 c
 
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            q(i,1,1)= rbar(i,1,1)**2
            q(i,1,2)= rbar(i,1,2)**2
@@ -989,7 +970,6 @@ c
 c
 c                       compute multipliers.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          a2(i)= one/(iiiu(i)*(iu(i)*iiu(i)-iiiu(i)))
          b2(i)= iu(i)*iiu(i)*iiu(i)-iiiu(i)*(iu(i)*iu(i)+iiu(i))
@@ -1000,7 +980,6 @@ c
 c                       compute the inverse of the right
 c                       stretch tensor.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          ui(i,1)= a2(i) * ( b2(i) + c2(i)*c(i,1) + d2(i)*cc(i,1) )
          ui(i,2)= a2(i) * (         c2(i)*c(i,2) + d2(i)*cc(i,2) )
@@ -1049,7 +1028,6 @@ c
 c              c and cc are in symmetric upper triangular form.
 c              compute the metric tensor.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        c(i,1)= f(i,1,1)*f(i,1,1)+f(i,2,1)*f(i,2,1)+f(i,3,1)*f(i,3,1)
        c(i,2)= f(i,1,1)*f(i,1,2)+f(i,2,1)*f(i,2,2)+f(i,3,1)*f(i,3,2)
@@ -1061,7 +1039,6 @@ c
 c
 c              compute the square of the metric tensor
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        cc(i,1)= c(i,1)*c(i,1)+c(i,2)*c(i,2)+c(i,4)*c(i,4)
        cc(i,2)= c(i,1)*c(i,2)+c(i,2)*c(i,3)+c(i,4)*c(i,5)
@@ -1085,7 +1062,6 @@ c
       if( new ) then
         call evcmp1_new( span, mxvl, c, ev )
       else ! use old eigenvalue routine
-!DIR$ VECTOR ALIGNED
           do i = 1, span
              ct(i,1)= c(i,1)
              ct(i,2)= c(i,3)
@@ -1099,7 +1075,6 @@ c
 c
 c              set the principal values.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          ev(i,1) = sqrt(ev(i,1))
          ev(i,2) = sqrt(ev(i,2))
@@ -1108,7 +1083,6 @@ c
 c
 c              invariants of right stretch tensor.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        iu(i)  = ev(i,1)+ev(i,2)+ev(i,3)
        iiu(i) = ev(i,1)*ev(i,2)+ev(i,2)*ev(i,3)+ev(i,1)*ev(i,3)
@@ -1252,7 +1226,6 @@ c              initialize lamda, m, sweep parameters.
 c
       swpnum = 0
 c
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
 c
          m(bel,1)= one
@@ -1316,7 +1289,6 @@ c           *                                     *
 c           ***************************************
 c
 c
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
 c
 c                       check if term is within threshold
@@ -1379,7 +1351,6 @@ c           *           row 3 and column 1.       *
 c           *                                     *
 c           ***************************************
 c
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
 c
 c                       check if term is within threshold
@@ -1441,7 +1412,6 @@ c           *           row 3 and column 2.       *
 c           *                                     *
 c           ***************************************
 c
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
 c
 c                       check if term is within threshold
@@ -1503,7 +1473,6 @@ c              check off-diagonal elements for convergence
 c
       cvgtst = .true.
 c
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
 c
          errork(bel) = k(bel,4)*k(bel,4)/(k(bel,2)*k(bel,1))
@@ -1533,7 +1502,6 @@ c
 c
 c              update eigenvalue vector
 c
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
          lamda(bel,1) = k(bel,1) / m(bel,1)
          lamda(bel,2) = k(bel,2) / m(bel,2)
@@ -1543,7 +1511,6 @@ c
 c             reorder the eigenvalues. small to big
 c
 c
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
 c
          if( lamda(bel,2) .lt. lamda(bel,1) ) then

@@ -85,7 +85,6 @@ c
       trn_e_block         = .false.                                             
       k = 1                                                                     
       do j = 1, nnode                                                           
-!DIR$ IVDEP
          do i = 1, span                                                         
             ce(i,k)        = scoords(bcdst(k,i))                                      
             ce(i,k+1)      = scoords(bcdst(k+1,i))                                    
@@ -131,7 +130,6 @@ c
       if( .not. geonl ) return
 c                                                                               
       do  j = 1, totdof  
-!DIR$ IVDEP                                                             
        do i = 1, span                                                           
           ue(i,j)  = sdispl(bedst(j,i))                                              
           due(i,j) = sdu(bedst(j,i))                                             
@@ -148,7 +146,6 @@ c
       end if                                                                    
 c                                                                               
       do j = 1, totdof                                                          
-!DIR$ IVDEP
        do i = 1, span    
          ce_orig(i,j) = ce(i,j)                                                 
          ce(i,j)      = ce(i,j) + ue(i,j) + due(i,j)                            
@@ -179,11 +176,9 @@ c
           elem_ptr = dam_ptr(element)           
           if( elem_ptr == 0 ) cycle ! element not killable                                   
           if( dam_state(elem_ptr) == 0 ) cycle ! not yet start killing
-!DIR$ IVDEP                                                            
           do j = 1, 3*nnode   ! killed                                                
             ce(i,j) = scoords(bcdst(j,i))                                            
           end do    
-!DIR$ IVDEP                                                            
           do j = 1, totdof             
             ue(i,j)  = zero
             due(i,j) = zero
@@ -199,11 +194,9 @@ c
           elem_ptr = dam_ptr(element)                                              
           if( elem_ptr == 0 ) cycle ! element not killable                                   
           if( dam_state(elem_ptr) == 0 ) cycle ! not yet start killing
-!DIR$ IVDEP                                                            
           do j = 1, 3*nnode   ! fully removed                                               
             ce(i,j) = scoords(bcdst(j,i))                                            
           end do    
-!DIR$ IVDEP                                                            
           do j = 1, totdof             
             ue(i,j)  = zero
             due(i,j) = zero

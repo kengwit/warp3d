@@ -253,7 +253,6 @@ c             scatter the element internal forces (stored in blocks) into
 c             the global vector (unless we are cutting step)
 c             initialize the global internal force vector.
 c
-!DIR$ IVDEP
       ifv(1:nodof) = zero    ! for this rank
       sum_ifv      = zero    ! for this rank
       num_term_ifv = 0       ! for this rank
@@ -1698,7 +1697,6 @@ c           pull coordinates at t=0 from global input vector.
 c
       k = 1
       do j = 1, nnode
-!DIR$ IVDEP
          do i = 1, span
             ce_0(i,k)   = c(bcdst(k,i))
             ce_0(i,k+1) = c(bcdst(k+1,i))
@@ -1725,7 +1723,6 @@ c
 c
       if( update_coords ) then
        do  j = 1, totdof
-!DIR$ IVDEP
           do i = 1, span
             ce_n(i,j)   = ce_0(i,j) + ue(i,j)
             ce_mid(i,j) = ce_0(i,j) + ue(i,j) + half*due(i,j)
@@ -1744,7 +1741,6 @@ c
 c
       if( .not. update_coords ) then
           do  j = 1, totdof
-!DIR$ IVDEP
             do i = 1, span
               ce_n(i,j)   = ce_0(i,j)
               ce_mid(i,j) = ce_0(i,j)
@@ -1796,7 +1792,6 @@ c
       if( fgm_node_values_defined ) then
         do j = 1,  fgm_node_values_cols
           do i = 1, nnode
-!DIR$ IVDEP
             do k = 1, span
               local_work%enode_mat_props(i,k,j) =
      &                     fgm_node_values(belinc(i,k),j)
@@ -1848,7 +1843,6 @@ c
 c
 c           vectorized mises plasticty model.
 c
-!DIR$ IVDEP
         do i = 1, span
            matl_no = iprops(38,felem+i-1)
            local_work%tan_e_vec(i) = matprp(4,matl_no)
@@ -1866,7 +1860,6 @@ c
 c           general mises/gurson model.
 c
         if ( local_debug ) write(out,9950)
-!DIR$ IVDEP
         do i = 1, span
            matl_no = iprops(38,felem+i-1)
            local_work%tan_e_vec(i) = matprp(4,matl_no)
@@ -1971,7 +1964,6 @@ c
       if( ngp .ne. 8 ) then
         do k = 1, ngp
          do  j = 1, nprm
-!DIR$ VECTOR ALIGNED
             do  i = 1, span
                mlocal(i,j,k) = mglobal(j,k,i)
             end do
@@ -1983,7 +1975,6 @@ c
 c                number of integration points = 8, unroll.
 c
       do  j = 1, nprm
-!DIR$ VECTOR ALIGNED
         do  i = 1, span
             mlocal(i,j,1) = mglobal(j,1,i)
             mlocal(i,j,2) = mglobal(j,2,i)

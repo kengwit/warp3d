@@ -994,7 +994,6 @@ c
 c              expand to 3x3 symmetric [D] scaled by gpn                        
 c              weight factor                                                    
 c                                                                               
-!DIR$ IVDEP                                                                     
       do ielem = 1, span                                                        
        f = weight * local_work%det_jac_block(ielem,gpn)                         
        k = ( 6 * span * (gpn-1) ) + 6 * (ielem-1)                               
@@ -1205,8 +1204,6 @@ c
 c      do ielem = 1, span                                                       
 c        sloc = ( 21 * span * (gpn-1) ) + 21 * (ielem-1)                        
 c        f = weight * local_work%det_jac_block(ielem,gpn)                       
-c!DIR$ IVDEP                                                                    
-c!DIR$ VECTOR ALIGNED                                                           
 c        do k = 1, 21                                                           
 c         symm_part_cep(ielem,k) = f *                                          
 c     &        gbl_cep_blocks(now_blk)%vector(sloc+k)                           
@@ -1214,8 +1211,6 @@ c        end do
 c      end do                                                                   
                                                                                 
       do k = 1, 21                                                              
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
         do ielem = 1, span                                                      
         sloc = ( 21 * span * (gpn-1) ) + 21 * (ielem-1)                         
         f = weight * local_work%det_jac_block(ielem,gpn)                        
@@ -1224,8 +1219,6 @@ c      end do
         end do                                                                  
       end do                                                                    
                                                                                 
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
        do ielem = 1, span                                                       
         local_work%cep(ielem,1,1) = symm_part_cep(ielem,1)                      
         local_work%cep(ielem,2,1) = symm_part_cep(ielem,2)                      
@@ -1323,7 +1316,6 @@ c                      global cep block is 21 x span x num integration
 c                      points                                                   
 c                                                                               
         start_loc = ( 21 * span * (gpn-1) ) + 21 * (ielem-1)                    
-!DIR$ IVDEP                                                                     
         do k = 1, 21                                                            
           symm_part_cep(k) = gbl_cep_blocks(now_blk)%vector(start_loc+k)        
         end do                                                                  
@@ -1334,7 +1326,6 @@ c
         factor = weight * local_work%det_jac_block(ielem,gpn)                   
         k = 1                                                                   
         do i = 1, 6                                                             
-!DIR$ IVDEP                                                                     
          do j = 1, i                                                            
            local_work%cep(ielem,i,j) = symm_part_cep(k) * factor                
            local_work%cep(ielem,j,i) = symm_part_cep(k) * factor                
@@ -1532,8 +1523,6 @@ c              i: 4->6 and j: 4->6 should be zeroed by
 c              cnst.. routine.                                                  
 c                                                                               
       do j = 1, totdof                                                          
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
        do i = 1, span                                                           
            bd(i,j,1) = d(i,1,1) * b(i,j,1)                                      
      &               + d(i,2,1) * b(i,j,2)                                      
@@ -1592,7 +1581,6 @@ c
       do col = 1, totdof                                                        
        do row = 1, totdof                                                       
              j = j + 1                                                          
-!DIR$ IVDEP                                                                     
         do i = 1, span                                                          
          ek_full(i,j) = ek_full(i,j)                                            
      &         +   b(i,col,1) * bd(i,row,1)                                     
@@ -1648,7 +1636,6 @@ c              i: 4->6 and j: 4->6 should be zeroed by
 c              cnst.. routine.                                                  
 c                                                                               
       do j = 1, totdof                                                          
-!DIR$ IVDEP                                                                     
        do i = 1, span                                                           
            bd(i,j,1) = d(i,1,1) * b(i,j,1)                                      
      &               + d(i,2,1) * b(i,j,2)                                      
@@ -1702,7 +1689,6 @@ c
       do j = 1, utsz                                                            
         row = icp(j,1)                                                          
         col = icp(j,2)                                                          
-!DIR$ IVDEP                                                                     
         do i = 1, span                                                          
          ek_symm(i,j) = ek_symm(i,j)                                            
      &         +   b(i,col,1) * bd(i,row,1)                                     
@@ -1778,8 +1764,6 @@ c             use 6 as number of stress components to expose
 c             value to compiler                                                 
 c                                                                               
       do j = 1, 6                                                               
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
          do i = 1, span                                                         
 c                                                                               
             tc(i,j,1)= (qn1(i,j,1)*cep(i,1,1)+                                  
@@ -1831,8 +1815,6 @@ c                       perform multiplication of
 c                       [cep*] =  [tc] * transpose([qn1])                       
 c                                                                               
       do j = 1, 6                                                               
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
          do i = 1, span                                                         
 c                                                                               
             cep(i,j,1)= tc(i,j,1)*qn1(i,1,1)+                                   
@@ -1909,8 +1891,6 @@ c
       double precision :: wf, halfw, xx, yy, zz, xy, yz, xz
 
 c
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
       do i = 1, span                                                          
        wf    = dj(i) * w                                                      
        halfw = half * wf
@@ -2175,7 +2155,6 @@ c
 c      do i = 1, span                                                           
 c                                                                               
 c        do k = 1, 6                                                            
-c@!DIR$ IVDEP                                                                   
 c          do j = 1, totdof                                                     
 c             local_bt(j,k) = b(i,j,k)                                          
 c             local_b(k,j)  = b(i,j,k)                                          
@@ -2183,7 +2162,6 @@ c          end do
 c        end do                                                                 
 c                                                                               
 c        do j = 1, 6                                                            
-c@!DIR$ IVDEP                                                                   
 c          do k = 1, 6                                                          
 c            local_d(k,j) = d(i,k,j)                                            
 c          end do                                                               
@@ -2196,7 +2174,6 @@ c                       reshape same speed as codes do loops
 c                                                                               
 c        local_db = matmul( local_d, local_b )                                  
 c        local_btdb = matmul( local_bt, local_db )                              
-c@!DIR$ IVDEP                                                                   
 c        ek(:,i) = ek(:,i) + reshape(local_btdb,(/totdof*totdof/))              
 c                                                                               
 c      end do ! on span                                                         

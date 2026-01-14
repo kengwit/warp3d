@@ -100,7 +100,6 @@ c
 c             thread private value passed for sum_ifv, num_term_ifv
 c                                                 
       do j = 1, totdof                                                          
-!DIR$ IVDEP                                                                     
          do i = 1, span                                                         
             sum_ifv = sum_ifv + abs(eleifv(i,j))                                
          end do                                                                 
@@ -151,7 +150,6 @@ c
 c             thread private value passed for sum_ifv, num_term_ifv
 c                                                 
       do j = 1, totdof                                                          
-!DIR$ IVDEP                                                                     
          do i = 1, span                                                         
             sum_ifv = sum_ifv + abs(eleifv(i,j))                                
          end do                                                                 
@@ -177,7 +175,6 @@ c
          element  = felem + relem - 1       
          elem_ptr =  dam_ptr(element)    
          if( dam_state(elem_ptr) > 0 ) cycle  ! already killed       
-!DIR$ IVDEP   
          do i = 1, totdof
             dam_ifv(i,elem_ptr) = eleifv(relem,i)   
          end do                        
@@ -232,13 +229,11 @@ c
          element  = felem + relem - 1       
          elem_ptr =  dam_ptr(element)    
          if( dam_state(elem_ptr) .eq. 0  ) then! not yet killed 
-!DIR$ IVDEP   
            do i = 1, totdof
               dam_ifv(i,elem_ptr) = eleifv(relem,i)   
            end do   
          end if                                
          if( dam_state(elem_ptr) > 0 ) then
-!DIR$ IVDEP   
            do i = 1, totdof
               eleifv(relem,i) = zero
            end do   
@@ -255,7 +250,6 @@ c
 c             thread private value passed for sum_ifv, num_term_ifv
 c                                                 
       do j = 1, totdof                                                          
-!DIR$ IVDEP                                                                     
          do i = 1, span                                                         
             sum_ifv = sum_ifv + abs(eleifv(i,j))                                
          end do                                                                 

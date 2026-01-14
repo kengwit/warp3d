@@ -463,7 +463,6 @@ c           state as required.
 c           position 10 is work density
 c
 c
-!DIR$ VECTOR ALIGNED
       do ptno = 1, ngpts
           loc = ( ptno-1 )  * numrow
           glb_sig_tens_gp(1,ptno)  = glb_sig_gp(loc+1)
@@ -499,7 +498,6 @@ c
 c
       f = two
 c
-!DIR$ VECTOR ALIGNED
       do enode = 1, nnode
          glb_eps_tens_enode(1,enode) = glb_eps_enode(1,enode)
          glb_eps_tens_enode(2,enode) = glb_eps_enode(4,enode)/f
@@ -681,7 +679,6 @@ c
       dstrain_x        = zero !   "
       dgrad_x          = zero !   "
 c
-!DIR$ VECTOR ALIGNED
       do enode = 1, nnode
        nx = dsf(enode,1,ptno) * jacobi(1,1,ptno) +
      &      dsf(enode,2,ptno) * jacobi(1,2,ptno) +
@@ -707,10 +704,8 @@ c
        dym_x    = dym_x  + nx * ym_nodes(enode)
        dnu_x    = dnu_x  + nx * nu_nodes(enode)
 c
-!DIR$ VECTOR ALIGNED
        dstrain_x(1:9) = dstrain_x(1:9) +
      &                   nx * crk_eps_tens_enode(1:9,enode)
-!DIR$ VECTOR ALIGNED
        dgrad_x(1:9) = dgrad_x(1:9) +
      &                   nx * crk_displ_grad_enode(1:9,enode)
 c
@@ -1299,7 +1294,6 @@ c
       point_y                 = zero
       point_z                 = zero
 c
-!DIR$ VECTOR ALIGNED
       do enode = 1, nnode
          q         = q         + sf(enode) * eqvalues(enode)
          x_vel     = x_vel     + sf(enode) * evel(1,enode)
@@ -1444,7 +1438,6 @@ c
 c
       double precision :: crack(3), global(3), rot(3,3)
 c
-!DIR$ VECTOR ALIGNED
       crack = matmul( rot, global )
       return
       end subroutine dielrv_a
@@ -1478,11 +1471,8 @@ c
 c            for strains:
 c            global are element global strains
 c
-!DIR$ VECTOR ALIGNED
       trotate = transpose( rotate )
-!DIR$ VECTOR ALIGNED
       space   = matmul( rotate, global )
-!DIR$ VECTOR ALIGNED
       crack   = matmul( space, trotate )
 c
       return
@@ -1855,7 +1845,6 @@ c
 c            {cstress} = [q] * {stress}; 6x1 vectors and 6x6 q
 c             (Cauchy)         (u.r. Cauchy)
 c
-!DIR$ VECTOR ALIGNED
       cauchy_vector = matmul( q, unrotated_stress )
 c
 c            store cauchy stresses in 3x3 tensor form.
@@ -1911,7 +1900,6 @@ c             X -> coordinates at t = 0
 c
       debug = gdebug
 c
-!DIR$ VECTOR ALIGNED
       F = displ_grad
       F(1,1) = F(1,1) + one
       F(2,2) = F(2,2) + one
@@ -2069,14 +2057,12 @@ c
       res = zero
 c
       if( stepa .eq. 1 .and. stepb .eq. 1 ) then
-!DIR$ VECTOR ALIGNED
        do i = 1, nterms
           res = res + veca(i)*vecb(i)
         end do
       else
         indexa = 1
         indexb = 1
-!DIR$ VECTOR ALIGNED
         do i = 1, nterms
           res = res + veca(indexa)*vecb(indexb)
           indexa = indexa + stepa

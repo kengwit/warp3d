@@ -103,7 +103,6 @@ c
          chk = allocated( nonlocal_data_n(i)%state_values ) .and.               
      &         allocated( nonlocal_data_n1(i)%state_values )                    
         if( chk ) then                                                          
-!DIR$ VECTOR ALIGNED                                                            
            nonlocal_data_n(i)%state_values(1:n) =                               
      &              nonlocal_data_n1(i)%state_values(1:n)                       
         else                                                                    
@@ -116,10 +115,8 @@ c
 c                       update the nodal and element temperatures               
 c                                                                               
       if( temperatures ) then                                                   
-!DIR$ VECTOR ALIGNED                                                            
         temper_nodes(1:nonode) = temper_nodes(1:nonode) +                       
      &                           dtemp_nodes(1:nonode)                          
-!DIR$ VECTOR ALIGNED                                                            
         temper_elems(1:noelem) = temper_elems(1:noelem) +                       
      &                           dtemp_elems(1:noelem)                          
       end if                                                                    
@@ -134,7 +131,6 @@ c
       update_lag_forces = allocated(total_lagrange_forces) .and.                
      &                    allocated(d_lagrange_forces)                          
       if( update_lag_forces ) then                                              
-!DIR$ VECTOR ALIGNED                                                            
        total_lagrange_forces(1:nodof) = total_lagrange_forces(1:nodof)          
      &                                 + d_lagrange_forces(1:nodof)             
        if( local_debug ) then                                                   
@@ -183,7 +179,6 @@ c
       double precision, intent(out):: a(n)                                      
       double precision, intent(in):: b(n)                                            
 c                                                                               
-!DIR$ VECTOR ALIGNED                                                            
       a(1:n) = b(1:n)                                                                     
       return                                                                    
       end                                                                       
@@ -244,7 +239,6 @@ c
 c                                                                               
       end if                                                                    
 c                                                                               
-!DIR$ VECTOR ALIGNED                                                            
       do i = 1, nodof                                                           
          veln            = velocity(i)                                          
          acceln          = acceleration(i)                                      

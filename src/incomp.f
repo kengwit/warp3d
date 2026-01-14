@@ -362,7 +362,6 @@ c           elements in the block
 c
       k = 1
       do j = 1, num_enodes
-!DIR$ IVDEP
          do relem = 1, span
             enode_coords(relem,k)   = scoords(bcdst(k,relem))
             enode_coords(relem,k+1) = scoords(bcdst(k+1,relem))

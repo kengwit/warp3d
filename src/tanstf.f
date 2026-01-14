@@ -761,7 +761,6 @@ c
 c           this code below depends on ndof per node = 3                        
 c                                                                               
       do j = 1, nnode                                                           
-!DIR$ IVDEP                                                                     
        do k = 1, span                                                           
          node = incid(incmap(felem+k-1) + j-1)                                  
          if ( .not. trn(node) ) cycle                                           
@@ -807,7 +806,6 @@ c
 c      if( ngp .ne. 8 ) then                                                    
         do k = 1, ngp                                                           
          do  j = 1, hist_size                                                   
-!DIR$ VECTOR ALIGNED                                                            
             do  i = 1, span                                                     
                local_hist(i,j,k) = global_hist(j,k,i)                           
             end do                                                              
@@ -819,7 +817,6 @@ c
 c                number of gauss points = 8, unroll.                            
 c                                                                               
 c     do  j = 1, hist_size                                                      
-c@!DIR$ IVDEP                                                                   
 c        do  i = 1, span                                                        
 c            local_hist(i,j,1) = global_hist(j,1,i)                             
 c            local_hist(i,j,2) = global_hist(j,2,i)                             
@@ -887,7 +884,6 @@ c
            call die_abort                                                       
       end if                                                                    
 c                                                                               
-!DIR$ VECTOR ALIGNED                                                            
       local_work%b_block = zero                                                 
 c                                                                               
       allocate( local_work%ue(mxvl,mxedof),                                     
@@ -911,11 +907,8 @@ c
            call die_abort                                                       
       end if                                                                    
 c                                                                               
-!DIR$ VECTOR ALIGNED                                                            
       local_work%cep = zero                                                     
-!DIR$ VECTOR ALIGNED                                                            
       local_work%qn1 = zero                                                     
-!DIR$ VECTOR ALIGNED                                                            
       local_work%cs_blk_n1 = zero                                               
 c                                                                               
       allocate( local_work%weights(mxgp), stat=error )                          
@@ -1114,7 +1107,6 @@ c
       double precision :: vec(n), zero                                          
       data zero / 0.0d00 /                                                      
 c                                                                               
-!DIR$ VECTOR ALIGNED                                                            
       vec = zero                                                                
 c                                                                               
       return                                                                    
@@ -1149,7 +1141,6 @@ c
       if( ngp .ne. 8 ) then                                                     
         do k = 1, ngp                                                           
          do  j = 1, nprm                                                        
-!DIR$ VECTOR ALIGNED                                                            
             do  i = 1, span                                                     
                ml(i,j,k) = mg(j,k,i)                                            
             end do                                                              
@@ -1161,7 +1152,6 @@ c
 c                number of gauss points = 8, unroll.                            
 c                                                                               
       do  j = 1, nprm                                                           
-!DIR$ VECTOR ALIGNED                                                            
         do  i = 1, span                                                         
             ml(i,j,1) = mg(j,1,i)                                               
             ml(i,j,2) = mg(j,2,i)                                               
@@ -1213,7 +1203,6 @@ c
           elem_ptr = dam_ptr(element)
           if( elem_ptr == 0 ) cycle   ! element not yet killed                            
           if( dam_state(elem_ptr) == 0 ) cycle ! element in release  
-!DIR$ IVDEP
           do i = 1, nrow_ek            
             estiff_blocks(blk)%ptr(i,relem) = zero       
           end do           

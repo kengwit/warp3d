@@ -22,8 +22,6 @@ c
 c                                                                               
 c               refer to extensive comments in vol_terms.f                      
 c                                                                               
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
       do i = 1, span                                                            
 c                                                                               
        voli = one / volume(i)                                                   

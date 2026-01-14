@@ -63,7 +63,6 @@ c               potential debugging easier.
 c                                                                               
       x1 = ce(1,1); y1 = ce(1,nnode+1); z1 = ce(1,2*nnode+1)                    
       do j = 1, nnode                                                           
-!DIR$ IVDEP                                                                     
          do i = 1, span                                                         
            ce(i,j) = ce(i,j) - x1                                               
            ce(i,nnode+j) = ce(i,nnode+j) - y1                                   
@@ -76,7 +75,6 @@ c               1, 2,3. local z is normal to plane containing
 c               element nodes 1, 2, 3. Then rotate the shifted                  
 c               global coordinates into this 1-2-3 system.                      
 c                                                                               
-!DIR$ IVDEP                                                                     
       do i = 1, span                                                            
         x21 = ce(i,2) - ce(i,1)                                                 
         y21 = ce(i,nnode+2) - ce(i,nnode+1)                                     
@@ -155,7 +153,6 @@ c
        call jacob_cohes( etype, imxvl, ispan, innode, ce_rotated,               
      &                   nxi, neta, nzeta, dj, jac, 2 )                         
 c                                                                               
-!DIR$ IVDEP                                                                     
        do i = 1, span                                                           
 c                                                                               
         d1 = sqrt(jac(i,1,1)*jac(i,1,1) + jac(i,1,2)*jac(i,1,2)                 
@@ -262,7 +259,6 @@ c
       do i = 1, nnode                                                           
          j = i + nnode                                                          
         jj = i + 2*nnode                                                        
-!DIR$ IVDEP                                                                     
           do k = 1, span                                                        
              rvar(k,i) = var(k,i)*rot(k,1,1) + var(k,j)*rot(k,1,2)              
      &                   + var(k,jj)*rot(k,1,3)                                 
@@ -314,14 +310,12 @@ c
 c                                                                               
       data zero / 0.0d0 /                                                       
 c                                                                               
-!DIR$ IVDEP                                                                     
       do i = 1, span                                                            
          jac(i,1:3,1:3) = zero                                                  
          dj(i)          = zero                                                  
       end do                                                                    
 c                                                                               
       do j = 1, nnode                                                           
-!DIR$ IVDEP                                                                     
          do i = 1, span                                                         
              jac(i,1,1)= jac(i,1,1)+nxi(j)*coords(i,j)                          
              jac(i,1,2)= jac(i,1,2)+nxi(j)*coords(i,nnode+j)                    
@@ -338,7 +332,6 @@ c
 c                                                                               
 c           determinate of the jacobian matrix                                  
 c                                                                               
-!DIR$ IVDEP                                                                     
       do i = 1, span                                                            
           j1= jac(i,2,2)*jac(i,3,3)-jac(i,2,3)*jac(i,3,2)                       
           j2= jac(i,2,1)*jac(i,3,3)-jac(i,2,3)*jac(i,3,1)                       
@@ -470,7 +463,6 @@ c            | coor   | /
 c            |        |                                                         
 c                                                                               
       do j = 1,shift                                                            
-!DIR$ IVDEP                                                                     
         do k = 1, span                                                          
             ce_refsurf(k,xb+j) = ce_upd(k,xt+j)                                 
             ce_refsurf(k,xt+j) = ce_upd(k,xb+j)                                 
@@ -482,7 +474,6 @@ c
       end do                                                                    
 c                                                                               
       do j = 1, totdof                                                          
-!DIR$ IVDEP                                                                     
         ce_upd(1:span,j) = ce_refsurf(1:span,j)                                 
       end do                                                                    
 c                                                                               
@@ -547,7 +538,6 @@ c
       end do                                                                    
 c                                                                               
       do j = 1, totdof                                                          
-!DIR$ IVDEP                                                                     
         ce_upd(1:span,j) = ce_refsurf(1:span,j)                                 
       end do                                                                    
 c                                                                               
@@ -985,7 +975,6 @@ c
       nsurf = nnode / 2                                                         
       collapsed = .false.                                                       
       do i = 1, span                                                            
-!DIR$ IVDEP                                                                     
          do j = 1, nsurf                                                        
            xb(j) = ce(i,j)                                                      
            yb(j) = ce(i,nnode+j)                                                
@@ -1037,13 +1026,11 @@ c             line connecting two corners.
                                                                                 
       if( nnode .ne. 12 ) go to 300                                             
       do i = 1, span                                                            
-!DIR$ IVDEP                                                                     
          do j = 1, 12                                                           
            x(j) = ce(i,j)                                                       
            y(j) = ce(i,12+j)                                                    
            z(j) = ce(i,24+j)                                                    
          end do                                                                 
-!DIR$ IVDEP                                                                     
          do j = 1, 6                                                            
            n1 = trint12_list(1,j)                                               
            n2 = trint12_list(2,j)  ! middle node on edge                        
@@ -1071,7 +1058,6 @@ c             nodes
  300  continue                                                                  
       nsurf = nnode / 2                                                         
       do i = 1, span                                                            
-!DIR$ IVDEP                                                                     
          do j = 1, nsurf                                                        
            xb(j) = ce(i,j)                                                      
            yb(j) = ce(i,nnode+j)                                                
@@ -1154,7 +1140,6 @@ c
       nsurf = nnode / 2                                                         
       collapsed = .false.                                                       
       do i = 1, span                                                            
-!DIR$ IVDEP                                                                     
          do j = 1, nsurf                                                        
            xb(j) = ce(i,j)                                                      
            yb(j) = ce(i,nnode+j)                                                
@@ -1226,7 +1211,6 @@ c             nodes
 c                                                                               
       nsurf = nnode / 2                                                         
       do i = 1, span                                                            
-!DIR$ IVDEP                                                                     
          do j = 1, nsurf                                                        
            xb(j) = ce(i,j)                                                      
            yb(j) = ce(i,nnode+j)                                                

@@ -47,9 +47,7 @@ c
       allocate(rho(mxvl), volume(mxvl), emass(mxvl),                         
      &                    rho_fgm_flags(mxvl), area(mxvl) )
 c                                                                                  
-!DIR$ VECTOR ALIGNED                                                            
       mel(1:totdof,1:span)= zero                                                
-!DIR$ VECTOR ALIGNED
       do i = 1, span                                                            
         volume(i)        = zero                                                 
         rho(i)           = props(10,i)                                          

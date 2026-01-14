@@ -731,11 +731,8 @@ c
          call die_abort
       end if
       extrap_counts       = 0
-!DIR$ VECTOR ALIGNED
       swd_at_nodes        = zero
-!DIR$ VECTOR ALIGNED
       strain_at_nodes     = zero
-!DIR$ VECTOR ALIGNED
       displ_grad_at_nodes = zero
 c
       call di_node_vals( extrap_counts, swd_at_nodes, strain_at_nodes,
@@ -845,7 +842,6 @@ c
         do snode = 1, nonode
           if( extrap_counts(snode) .eq. 0 ) cycle
           rc = one / dble( extrap_counts(snode) )
-!DIR$ VECTOR ALIGNED
           strain_at_nodes(1:6,snode) = strain_at_nodes(1:6,snode) * rc
         end do
       end if
@@ -856,7 +852,6 @@ c
         do snode = 1, nonode
           if( extrap_counts(snode) .eq. 0 ) cycle
           rc = one / dble( extrap_counts(snode) )
-!DIR$ VECTOR ALIGNED
           displ_grad_at_nodes(1:9,snode) =
      &        displ_grad_at_nodes(1:9,snode) * rc
         end do
@@ -962,7 +957,6 @@ c             1. gather integration point work densities.
 c                adjust for plastic value at the user-defined
 c                initial state if required
 c
-!DIR$ VECTOR ALIGNED
       do gpn = 1, num_gpts
          swd_at_gpts(gpn) = urcs_n(sig_offset + 7)
          sig_offset       = sig_offset + nstrs
@@ -970,7 +964,6 @@ c
 c
       if( process_initial_state ) then
         associate( z => initial_state_data(blk)%W_plastic_nis_block )
-!DIR$ VECTOR ALIGNED
         do gpn = 1, num_gpts
            W0 = z(rel_elem,gpn)
            swd_at_gpts(gpn) = swd_at_gpts(gpn)  - W0
@@ -1032,11 +1025,8 @@ c
 c
 c             4. extrapolate integration point values to element nodes
 c
-!DIR$ VECTOR ALIGNED
       enode_swd        = zero  !  all terms    always
-!DIR$ VECTOR ALIGNED
       enode_strains    = zero  !     "         small eps only
-!DIR$ VECTOR ALIGNED
       enode_displ_grad = zero  !     "         large eps only
 c
       call di_extrap_to_nodes( elemno, etype, num_enodes, int_order,
@@ -1072,7 +1062,6 @@ c
       if( j_linear_formulation ) then
         do enode = 1, num_enodes
           snode = e_snodes(enode)
-!DIR$ VECTOR ALIGNED
           do k = 1, 6
 c$OMP ATOMIC
            strain_at_nodes(k,snode) = strain_at_nodes(k,snode) +
@@ -1084,7 +1073,6 @@ c
       if( j_geonl_formulation ) then
       do enode = 1, num_enodes
          snode = e_snodes(enode)
-!DIR$ VECTOR ALIGNED
          do k = 1, 9
 c$OMP ATOMIC
           displ_grad_at_nodes(k,snode) =
@@ -1195,7 +1183,6 @@ c
         duz   = zero
         dvz   = zero
         dwz   = zero
-!DIR$ VECTOR ALIGNED
         do enode = 1, num_enodes
           nx = dsf_1(enode) * jacobi(1,1) + dsf_2(enode) * jacobi(1,2) +
      &         dsf_3(enode) * jacobi(1,3)
@@ -1238,9 +1225,7 @@ c                 Set displacement gradient tensor as F - I at
 c                 each integration point and leave.
 c
       if( etype .ne. 2 ) then ! 8-node hex is type 2
-!DIR$ VECTOR ALIGNED
       do ptno = 1, num_gpts
-!DIR$ VECTOR ALIGNED
       displ_grads(1:9,ptno) = F_vec(1:9,ptno)
            displ_grads(1,ptno)   = F_vec(1,ptno) - one
            displ_grads(5,ptno)   = F_vec(5,ptno) - one
@@ -1253,7 +1238,6 @@ c              4. for 8-node hex, replace F with F-bar
 c
       J_bar = sum_detF_dvel / vol_0
 c
-!DIR$ VECTOR ALIGNED
       do ptno = 1, num_gpts
         factor = (J_bar/ detf(ptno) ) ** third
         displ_grads(1,ptno) = (F_vec(1,ptno) * factor) - one
@@ -1362,7 +1346,6 @@ c
       x = one / dble( num_gpts )
 c
       do gpn = 1, num_gpts
-!DIR$ VECTOR ALIGNED
       enode_vals(1:nvalues,1) = enode_vals(1:nvalues,1) +
      &                              gpt_vals(1:nvalues,gpn)
       end do
@@ -1370,7 +1353,6 @@ c
       enode_vals(1:nvalues,1) = enode_vals(1:nvalues,1) * x
 c
       do enode = 2, num_enodes
-!DIR$ VECTOR ALIGNED
       enode_vals(1:nvalues,enode) = enode_vals(1:nvalues,1)
       end do
 c
@@ -1395,7 +1377,6 @@ c
        call oulgf( etype, xi, eta, zeta, lg, int_order )
 c
        do gpn = 1, num_gpts
-!DIR$ VECTOR ALIGNED
        enode_vals(1:nvalues,enode) =  enode_vals(1:nvalues,enode) +
      &                        gpt_vals(1:nvalues,gpn) * lg(gpn)
          end do

@@ -31,12 +31,6 @@ c          been verified. they are shared read-only across threads
 c                                                                               
 c                     double precision/reals                                    
 c                                                                               
-!dir$ attributes align: 64 :: seg_curves, seg_curves_min_stress                
-!dir$ attributes align: 64 :: seg_curves_value, seg_curves_ym
-!dir$ attributes align: 64 :: seg_curves_nu, seg_curves_pchip_slopes                          
-!dir$ attributes align: 64 :: seg_curves_alpha, seg_curves_gp_sigma_0                                 
-!dir$ attributes align: 64 :: seg_curves_gp_h_u,seg_curves_gp_beta_u                                 
-!dir$ attributes align: 64 :: seg_curves_gp_delta_u
 c                                                                               
        double precision ::                                                      
      & seg_curves(max_seg_points,2,max_seg_curves),                             
@@ -53,8 +47,6 @@ c
 c                                                                               
 c                     integers                                                  
 c                                                                               
-!dir$ attributes align: 64 :: num_seg_points, seg_curves_type                  
-!dir$ attributes align: 64 :: seg_curve_table                                                        
 c                                                                               
        integer ::                                                               
      &   num_seg_points(max_seg_curves),                                        
@@ -88,7 +80,6 @@ c
      &  curve_gp_sig_0_values, curve_gp_h_u_values,                             
      &  curve_gp_beta_u_values, curve_gp_delta_u_values
                                                                                 
-!dir$ attributes align: 64 :: curve_plseps_values                               
         double precision, dimension(max_seg_points) ::                          
      &   curve_plseps_values                                                    
 c                                                                               

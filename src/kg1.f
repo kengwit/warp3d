@@ -45,8 +45,6 @@ c
 c                                                                               
       if( bbar ) then                                                           
         do j = 1, nnode                                                         
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
           do i = 1, span                                                        
            gxi(i,j)   = vol(i,j,1)                                              
            geta(i,j)  = vol(i,j,2)                                              
@@ -55,8 +53,6 @@ c
         end do                                                                  
       else                                                                      
         do j = 1, nnode                                                         
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
           do i = 1, span                                                        
             gxi(i,j)  =  gama(i,1,1)*nxi(j)+gama(i,1,2)*neta(j)+                
      &                   gama(i,1,3)*nzeta(j)                                   
@@ -81,8 +77,6 @@ c              have row 1 of gtg, cols 9-15 have row 2, etc of the
 c              upper-triangle.                                                  
 c                                                                               
       do j = 1, cp(nnode)+nnode                                                 
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
          do i = 1, span                                                         
             gtg(i,j)= (gxi(i,icp(j,1))*gxi(i,icp(j,2))*sig(i,1)+                
      &                 geta(i,icp(j,1))*geta(i,icp(j,2))*sig(i,2)+              
@@ -106,8 +100,6 @@ c
          cp3 = cp(2*nnode+enode)+2*nnode                                        
 c                                                                               
          do j = 1, enode                                                        
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
             do  i = 1, span                                                     
                ek_symm(i,cp1+j) = ek_symm(i,cp1+j) + gtg(i,cp1+j)               
                ek_symm(i,cp2+j) = ek_symm(i,cp2+j) + gtg(i,cp1+j)               
@@ -143,8 +135,6 @@ c
            r3 = 2*nnode + j                                                     
            k3 = (c3-1)*totdof + r3                                              
 c                                                                               
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
            do  i = 1, span! col enode, row j                                    
              ek_full(i,k1) = ek_full(i,k1) + gtg(i,cp1+j)                       
              ek_full(i,k2) = ek_full(i,k2) + gtg(i,cp1+j)                       
@@ -153,8 +143,6 @@ c
 c                                                                               
            if( r1 .ne. c1 ) then  ! cleanup loop 1                              
              k = (r1-1)*totdof + c1                                             
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
              do i = 1, span                                                     
                ek_full(i,k) = ek_full(i,k) + gtg(i,cp1+j)                       
              end do                                                             
@@ -162,8 +150,6 @@ c
 c                                                                               
            if( r2 .ne. c2 ) then  ! cleanup loop 2                              
              k = (r2-1)*totdof + c2                                             
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
              do i = 1, span                                                     
                ek_full(i,k) = ek_full(i,k) + gtg(i,cp1+j)                       
              end do                                                             
@@ -171,8 +157,6 @@ c
 c                                                                               
            if( r3 .ne. c3 ) then  ! cleanup loop 3                              
               k = (r3-1)*totdof + c3                                            
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
               do i = 1, span                                                    
                 ek_full(i,k) = ek_full(i,k) + gtg(i,cp1+j)                      
               end do                                                            

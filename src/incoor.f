@@ -507,7 +507,6 @@ c
        crdtop = crdtop + 3
       end do
 c
-!DIR$ VECTOR ALIGNED
       do node = 1, nonode
        c(crdmap(node)+0) = xcoor(node)
        c(crdmap(node)+1) = ycoor(node)

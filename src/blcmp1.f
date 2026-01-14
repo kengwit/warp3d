@@ -35,8 +35,6 @@ c                       btemp - j,2 = NY for node j at gpn
 c                       btemp - j,3 = NZ for node j at gpn                      
 c                                                                               
       do j = 1, nnode                                                           
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
          do i = 1, span                                                         
             btemp(i,j,1)= gama(i,1,1)*nxi(j)+gama(i,1,2)*neta(j)+               
      &                    gama(i,1,3)*nzeta(j)                                  
@@ -56,25 +54,16 @@ c                       compute the linear strain-
 c                       displacement matrices, using btemp.                     
 c                                                                               
       do j = 1, nnode                                                           
-!DIR$ VECTOR ALIGNED                                                            
             b(1:span,j,1)=       btemp(1:span,j,1)                              
-!DIR$ VECTOR ALIGNED                                                            
             b(1:span,j,4)=       btemp(1:span,j,2)                              
-!DIR$ VECTOR ALIGNED                                                            
             b(1:span,j,6)=       btemp(1:span,j,3)                              
 c                                                                               
-!DIR$ VECTOR ALIGNED                                                            
             b(1:span,bpos1+j,2)= btemp(1:span,j,2)                              
-!DIR$ VECTOR ALIGNED                                                            
             b(1:span,bpos1+j,4)= btemp(1:span,j,1)                              
-!DIR$ VECTOR ALIGNED                                                            
             b(1:span,bpos1+j,5)= btemp(1:span,j,3)                              
 c                                                                               
-!DIR$ VECTOR ALIGNED                                                            
             b(1:span,bpos2+j,3)= btemp(1:span,j,3)                              
-!DIR$ VECTOR ALIGNED                                                            
             b(1:span,bpos2+j,5)= btemp(1:span,j,2)                              
-!DIR$ VECTOR ALIGNED                                                            
             b(1:span,bpos2+j,6)= btemp(1:span,j,1)                              
       end do                                                                    
       return                                                                    
@@ -122,13 +111,9 @@ c           compute B = R*sh
 c                                                                               
 c                                                                               
       if( nnode .eq. 12 ) then                                                  
-!DIR$ IVDEP                                                                     
        sh(1:6) = -shape(1:6)                                                    
-!DIR$ IVDEP                                                                     
        sh(7:12) = shape(7:12)                                                   
        do j = 1, 12                                                             
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
            do i = 1, span                                                       
               b(i,j,1) = sh(j)*rot(i,1,1)                                       
               b(i,j,2) = sh(j)*rot(i,2,1)                                       
@@ -151,8 +136,6 @@ c
         sh(1:3) = -shape(1:3)                                                   
         sh(4:6) = shape(4:6)                                                    
         do j = 1, 6                                                             
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
            do i = 1, span                                                       
               b(i,j,1) = sh(j)*rot(i,1,1)                                       
               b(i,j,2) = sh(j)*rot(i,2,1)                                       
@@ -175,8 +158,6 @@ c
         sh(1:4) = -shape(1:4)                                                   
         sh(5:8) = shape(5:8)                                                    
         do j = 1, 8                                                             
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
            do i = 1, span                                                       
               b(i,j,1) = sh(j)*rot(i,1,1)                                       
               b(i,j,2) = sh(j)*rot(i,2,1)                                       
@@ -207,8 +188,6 @@ c
        sh(i) = shape(i)                                                         
       end do                                                                    
       do j=1,nnode                                                              
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
            do i = 1, span                                                       
               b(i,j,1) = sh(j)*rot(i,1,1)                                       
               b(i,j,2) = sh(j)*rot(i,2,1)                                       
@@ -279,7 +258,6 @@ c                  axisymmetric elements only the upper left 2x2 of
 c                  the Jacobian matrix is used.                                 
 c                                                                               
         do j = 1, nnode                                                         
-!DIR$ IVDEP                                                                     
           do i = 1, span                                                        
               btemp(i,j,1) = gama(i,1,1)*nxi(j)+gama(i,1,2)*neta(j)             
               btemp(i,j,2) = gama(i,2,1)*nxi(j)+gama(i,2,2)*neta(j)             
@@ -300,7 +278,6 @@ c                       element; the bottom two rows are zeros for no
 c                       yz or zx shear strain.                                  
 c                                                                               
         do  j = 1, nnode                                                        
-!DIR$ IVDEP                                                                     
            do i = 1, span                                                       
 c                                                                               
               b(i,j,1)=       btemp(i,j,1)                                      

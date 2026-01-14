@@ -46,8 +46,6 @@ c             later routine vol_avg.
 c                                                                               
 c             loop over all elements in the block                               
 c                                                                               
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
       do i = 1, span                                                            
 c                                                                               
 c                       calculate 1st term for all nodes:                       

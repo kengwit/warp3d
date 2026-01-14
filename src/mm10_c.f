@@ -78,8 +78,6 @@ c
       double precision, parameter :: c = 1.0d-4, red = 0.5d0
       integer, parameter :: mls = 10, min = 1
 
-c!DIR$ ASSUME_ALIGNED vec1:64, vec2:64, arr1:64, arr2:64, ivec1:64
-c!DIR$ ASSUME_ALIGNED ivec2:64, stress:64, tt:64
 
 
 
@@ -857,7 +855,6 @@ c
       integer :: n, ldr
       double precision, dimension(n) :: x
       double precision :: rjac(ldr,n)
-c!DIR$ ASSUME_ALIGNED x:64, rjac:64
 c
       if( solve_work%solvfnc == 1 ) then
         if( solve_work%props%tang_calc == 2 ) then ! complex difference
@@ -916,7 +913,6 @@ c
 c      
       integer :: n, j
       double precision, dimension(n) :: x, fz
-c!DIR$ ASSUME_ALIGNED x:64, fz:64
 c
       if( solve_work%solvfnc == 1 ) then
         call mm10_formvecs( solve_work%props, solve_work%np1,
@@ -969,7 +965,6 @@ c
       complex(kind=real64), dimension (param_num_hard) :: x2i !  was dimension(n-6) :: x2i
       double precision, dimension(param_num_hard) :: zero2 ! was dimension(n-6) :: zero2
 c      
-c!DIR$ ASSUME_ALIGNED x:64, fz:64
       if( solve_work%solvfnc == 1 ) then
         zero2 = zero
         length = solve_work%props%num_hard

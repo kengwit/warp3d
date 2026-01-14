@@ -176,7 +176,6 @@ c                 include initial stresses if present (only step 1)
 c
       if( local_work%process_initial_stresses )  then
        do i = 1, span
-!DIR$ VECTOR ALIGNED
         local_work%urcs_blk_n(i,1:6,gpn) =
      &         local_work%initial_stresses(1:6,i)
        end do
@@ -288,7 +287,6 @@ c
         local_work%block_energy       = internal_energy
         local_work%block_plastic_work = plastic_work
         if( local_work%capture_initial_state ) then
-!DIR$ VECTOR ALIGNED
          initial_state_data(nowblk)%W_plastic_nis_block(1:span,gpn) =
      &                local_work%plastic_work_density_n1(1:span)
         end if
@@ -448,7 +446,6 @@ c
       if( drive_material_model ) then
          if( local_work%process_initial_stresses  )  then
             do i = 1, span
-!DIR$ VECTOR ALIGNED
               local_work%urcs_blk_n(i,1:6,gpn) =
      &                 local_work%initial_stresses(1:6,i)
             end do
@@ -484,7 +481,6 @@ c
         local_work%block_energy       = internal_energy
         local_work%block_plastic_work = plastic_work
         if( local_work%capture_initial_state ) then
-!DIR$ VECTOR ALIGNED
          initial_state_data(nowblk)%W_plastic_nis_block(1:span,gpn) =
      &                local_work%plastic_work_density_n1(1:span)
         end if
@@ -801,7 +797,6 @@ c
 c
 c          get the thermal strain increment (actually negative of increment)
 c
-!DIR$ VECTOR ALIGNED
       uddt_temps = zero
       if ( temperatures ) then  ! incremental temps
         call gp_temp_eps( span, uddt_temps, local_work%alpha_vec,
@@ -815,13 +810,10 @@ c            uddt_displ - strain increment due to displacement increment
 c            uddt_temps - (negative) of strain increment just due
 c                         to temperature change
 c
-!DIR$ VECTOR ALIGNED
       uddt = uddt_displ + uddt_temps
-!DIR$ VECTOR ALIGNED
       cep  = zero
 c
       do i = 1, span
-!DIR$ VECTOR ALIGNED
        if( local_work%killed_status_vec(i) ) uddt(i,1:nstr) = zero
       end do
 c
@@ -864,7 +856,6 @@ c
         call drive_01_update_a
       end if
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( .not. local_work%killed_status_vec(i) ) cycle
         cep(i,1:6,1:6) = zero
@@ -922,7 +913,6 @@ c
 c                 save current plastic work density for future
 c                 initial-state adjustment
 c
-!DIR$ VECTOR ALIGNED
       local_work%plastic_work_density_n1(1:span) =
      &          local_work%urcs_blk_n1(1:span,8,gpn)
 c
@@ -948,7 +938,6 @@ c
 c              get linear-elastic [D] with potentially temperature
 c              dependent properties
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          if( local_work%killed_status_vec(i) ) cycle
          e  = local_work%e_vec(i)
@@ -1013,12 +1002,10 @@ c              for each element in block, update stresses by
 c              [D-elastic] * uddt. uddt contains thermal increment +
 c              increment from imposed nodal displacements
 c
-!DIR$ VECTOR ALIGNED
       stress_np1 = stress_n
 c
       do k = 1, 6
        do m = 1, 6
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            stress_np1(i,k) = stress_np1(i,k) +
      &                       local_cep(i,m,k) * uddt(i,m)
@@ -1145,7 +1132,6 @@ c
      &            local_work%n_power_vec(1), local_work%shape(1,gpn),
      &            local_work%enode_mat_props, 8,
      &            local_work%fgm_flags(1,8) )
-!DIR$ VECTOR ALIGNED
           do i = 1, span
             gp_alpha  = local_work%alpha_vec(i,1)
             local_work%alpha_vec(i,1)   = gp_alpha
@@ -1192,7 +1178,6 @@ c
       end do
 c
       do i = 1, span
-!DIR$ VECTOR ALIGNED
        if( local_work%killed_status_vec(i) ) ddtse(i,1:nstr) = zero
       end do
 c
@@ -1219,12 +1204,10 @@ c
      &     call  drive_02_update_c 
       if(  linear_elastic_update  ) then
         if( local_debug ) write(iout,9070)
-!DIR$ VECTOR ALIGNED
         cep  = zero
         call drive_02_update_a
       end if 
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( .not. local_work%killed_status_vec(i) ) cycle
         cep(i,1:6,1:6) = zero
@@ -1282,7 +1265,6 @@ c
 c                 all work is recoverable for this model. 
 c                 no plastic component.
 c
-!DIR$ VECTOR ALIGNED
       local_work%plastic_work_density_n1(1:span) = zero
 c
       return
@@ -1308,7 +1290,6 @@ c
 c              get linear-elastic [D] with potentially temperature
 c              dependent properties
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          if( local_work%killed_status_vec(i) ) cycle
          e  = local_work%e_vec(i)
@@ -1374,12 +1355,10 @@ c              for each element in block, update stresses by
 c              [D-elastic] * uddt. uddt contains thermal increment +
 c              increment from imposed nodal displacements
 c
-!DIR$ VECTOR ALIGNED
       stress_np1 = zero
 c
       do k = 1, 6
        do m = 1, 6
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            stress_np1(i,k) = stress_np1(i,k) +
      &                       local_cep(i,m,k) * ddtse(i,m)
@@ -1388,7 +1367,6 @@ c
       end do
 c
       do k = 1, 6
-!DIR$ VECTOR ALIGNED
        do i = 1, span
          stress_np1(i,k) = stress_np1(i,k) + initial_stresses(k,i)
        end do
@@ -1560,7 +1538,6 @@ c
      &            local_work%enode_mat_props, 8,
      &            local_work%fgm_flags(1,8) )
 c
-!DIR$ VECTOR ALIGNED
           do i = 1, span
             local_work%e_vec(i)         = local_work%e_vec_n(i)
             local_work%nu_vec(i)        = local_work%nu_vec_n(i)
@@ -1628,7 +1605,6 @@ c
 c
 c          compute negative of incremental thermal strains
 c
-!DIR$ VECTOR ALIGNED
       uddt_temps = zero
       if( temperatures ) then
         call gp_temp_eps( span, uddt_temps, local_work%alpha_vec,
@@ -1643,11 +1619,8 @@ c            uddt_displ - strain increment due to displacement increment
 c            uddt_temps - (negative) of strain increment just due
 c                         to temperature change
 c
-!DIR$ VECTOR ALIGNED
       uddt = uddt_displ + uddt_temps
-!DIR$ VECTOR ALIGNED
       cep  = zero
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( local_work%killed_status_vec(i) ) uddt(i,1:nstr) = zero
       end do
@@ -1736,7 +1709,6 @@ c
 c                 save current plastic work density for future
 c                 initial-state adjustment
 c
-!DIR$ VECTOR ALIGNED
       local_work%plastic_work_density_n1(1:span) =
      &          local_work%urcs_blk_n1(1:span,8,gpn)
 
@@ -1763,7 +1735,6 @@ c
 c              get linear-elastic [D] with potentially temperature
 c              dependent properties
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          if( local_work%killed_status_vec(i) ) cycle
          e  = local_work%e_vec(i)
@@ -1894,10 +1865,8 @@ c                the mm03 routines all assume this reduction is
 c                done here. we can't change local_work since the
 c                next gp could be using the same vector.
 c
-!DIR$ VECTOR ALIGNED
       copy_sigyld_vec(1:span) = local_work%sigyld_vec(1:span)
       if( .not. segmental ) then
-!DIR$ VECTOR ALIGNED
         do i = 1, span
          if( local_work%n_power_vec(i) .gt. zero )
      &    copy_sigyld_vec(i) = copy_sigyld_vec(i) * trans_factor
@@ -1937,7 +1906,6 @@ c
       args%step_scale_fact       = step_scale_fact
       args%rate_depend_segmental = curve_type .eq. 2
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( null_point(i) ) cycle
         if( .not. local_work%nonlinear_flag(i) ) cycle
@@ -2014,12 +1982,10 @@ c              for each element in block, update stresses by
 c              [D-elastic] * uddt. uddt contains thermal increment +
 c              increment from imposed nodal displacements
 c
-!DIR$ VECTOR ALIGNED
       stress_np1 = stress_n
 c
       do k = 1, 6
        do m = 1, 6
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            stress_np1(i,k) = stress_np1(i,k) +
      &                       local_cep(i,m,k) * uddt(i,m)
@@ -2027,7 +1993,6 @@ c
        end do
       end do
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( killed_status(i) ) stress_np1(i,1:6) = zero
       end do
@@ -2056,7 +2021,6 @@ c
       integer :: k, i
 c
       do k = 1, nstrs  !  not necessarily = 6
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            urcs_blk_n1(i,k) = stress_n1(k,i)
          end do
@@ -2085,7 +2049,6 @@ c
       integer :: k, i
 c
       do k = 1, nstrs    !  not necessarily = 6
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            stress_n(k,i) = urcs_blk_n(i,k)
          end do
@@ -2158,7 +2121,6 @@ c
       nonlocal = local_work%is_cohes_nonlocal
       imxvl    = mxvl   ! protect mxvl
       if( gpn .eq. 1 ) then
-!DIR$ VECTOR ALIGNED
         local_work%elem_hist1 = zero
       end if
 c
@@ -2502,7 +2464,6 @@ c
 c            get the thermal strain increment (actually negative
 c            of increment)
 c
-!DIR$ VECTOR ALIGNED
       uddt_temps = zero
       if( temperatures ) then
         call gp_temp_eps( span, uddt_temps, local_work%alpha_vec,
@@ -2516,9 +2477,7 @@ c            uddt_displ - strain increment due to displacement increment
 c            uddt_temps - (negative) of strain increment just due
 c                         to temperature change
 c
-!DIR$ VECTOR ALIGNED
       uddt = uddt_displ + uddt_temps
-!DIR$ VECTOR ALIGNED
       cep  = zero
 c
       do i = 1, span
@@ -2563,7 +2522,6 @@ c
         call drive_05_update_a
       end if
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( .not. local_work%killed_status_vec(i) ) cycle
         cep(i,1:6,1:6) = zero
@@ -2620,7 +2578,6 @@ c
 c                 save current plastic work density for future
 c                 initial-state adjustment
 c
-!DIR$ VECTOR ALIGNED
       local_work%plastic_work_density_n1(1:span) =
      &          local_work%urcs_blk_n1(1:span,8,gpn)
 c
@@ -2649,7 +2606,6 @@ c            the nh option could have e, nu and alpha defined as temperature
 c            dependent by the user thru curves (but we really don't show that
 c            option in the manual.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         nh_sigma_0_vec(i) = local_work%sigyld_vec(i)
         nh_q_u_vec(i)     = matprp(55,matnum)
@@ -2863,7 +2819,6 @@ c
 c              get linear-elastic [D] with potentially temperature
 c              dependent properties
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          if( local_work%killed_status_vec(i) ) cycle
          e  = local_work%e_vec(i)
@@ -2927,12 +2882,10 @@ c              for each element in block, update stresses by
 c              [D-elastic] * uddt. uddt contains thermal increment +
 c              increment from imposed nodal displacements
 c
-!DIR$ VECTOR ALIGNED
       stress_np1 = stress_n
 c
       do k = 1, 6
        do m = 1, 6
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            stress_np1(i,k) = stress_np1(i,k) +
      &                       local_cep(i,m,k) * uddt(i,m)
@@ -3025,7 +2978,6 @@ c
 c
 c            compute (negative) of thermal strain increment
 c
-!DIR$ VECTOR ALIGNED
       uddt_temps = zero
       if( temperatures ) then
         call gp_temp_eps( span, uddt_temps, local_work%alpha_vec,
@@ -3057,10 +3009,8 @@ c
       if( iter .ge. 1 ) uddt = uddt_displ + uddt_temps
       if( iter .eq. 0 ) then
         if( extrapolated_du ) then
-!DIR$ VECTOR ALIGNED
            uddt = uddt_displ + uddt_temps
         else !  iter = 0, no extrapolate
-!DIR$ VECTOR ALIGNED
            uddt = uddt_temps
            compute_creep_strains = .true.
         end if
@@ -3091,7 +3041,6 @@ c
 c
       if( iter == 0 ) then
         if( extrapolated_du ) go to 9999 ! all updated
-!DIR$ VECTOR ALIGNED
         uddt = uddt + uddt_displ ! temps + creep strain incr + imposed du
         call drive_06_update_a( span, mxvl, uddt, cep,
      &                          local_work%urcs_blk_n1(1,1,gpn) )
@@ -3169,7 +3118,6 @@ c              nodal displacements
 c
       do k = 1, 6
        do m = 1, 6
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            stress_np1(i,k) = stress_np1(i,k) +
      &                       local_cep(i,m,k) * uddt(i,m)
@@ -3270,7 +3218,6 @@ c
 c            subtract out the thermal strain increment from uddt (the
 c            strain increment for step)
 c
-!DIR$ VECTOR ALIGNED
       uddt_temps = zero
       if ( temperatures ) then
         call gp_temp_eps( span, uddt_temps, local_work%alpha_vec,
@@ -3279,9 +3226,7 @@ c
      &                    gp_dtemps, gp_rtemps, type )
       end if
 c
-!DIR$ VECTOR ALIGNED
       uddt = uddt_displ + uddt_temps
-!DIR$ VECTOR ALIGNED
       cep  = zero
 c
       do i = 1, span
@@ -3319,7 +3264,6 @@ c
         call drive_07_update_a
       end if
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( .not. local_work%killed_status_vec(i) ) cycle
         cep(i,1:6,1:6) = zero
@@ -3372,7 +3316,6 @@ c
 c              get linear-elastic [D] with potentially temperature
 c              dependent properties
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          if( local_work%killed_status_vec(i) ) cycle
          e  = local_work%e_vec(i)
@@ -3438,12 +3381,10 @@ c              for each element in block, update stresses by
 c              [D-elastic] * uddt. uddt contains thermal increment +
 c              increment from imposed nodal displacements
 c
-!DIR$ VECTOR ALIGNED
       stress_np1 = stress_n
 c
       do k = 1, 6
        do m = 1, 6
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            stress_np1(i,k) = stress_np1(i,k) +
      &                       local_cep(i,m,k) * uddt(i,m)
@@ -3570,13 +3511,10 @@ c               from linear stiffness if that's current computation
 c               history was set in lnstff.
 c
       if( init_sig_eps ) then
-!DIR$ VECTOR ALIGNED
        local_work%urcs_blk_n = zero
-!DIR$ VECTOR ALIGNED
        local_work%strain_n = zero
       end if
       if( init_history ) then
-!DIR$ VECTOR ALIGNED
          local_work%elem_hist = zero
       end if
 c
@@ -3636,7 +3574,6 @@ c
 c              We call the code to compute/subtract thermal strains
 c              here even if alpha happens to be zero.
 c
-!DIR$ VECTOR ALIGNED
       uddt_temps = zero ! replaced by -alpha * delta T
       if( temperatures ) ! global flag set by loads processor
 c                           to indicate user-specified temp changes over
@@ -3661,7 +3598,6 @@ c              below. Since WARP3D handles rotations for hypoelasticity
 c              (like Abaqus Explicit), pass identity "drot" to umat.
 c
 
-!DIR$ VECTOR ALIGNED
       do k = 1, 9
        dfgrd0(k) = identity(k)
        dfgrd1(k) = identity(k)
@@ -3669,9 +3605,7 @@ c
       end do
 c
       rpl         = zero
-!DIR$ VECTOR ALIGNED
       ddsddt(1:6) = zero
-!DIR$ VECTOR ALIGNED
       drplde(1:6) = zero
       drpldt      = zero
 
@@ -3756,7 +3690,6 @@ c
 c               5.5 umats expect material stiffness to
 c                   be initialized zero
 c
-!DIR$ VECTOR ALIGNED
       ddsdde = zero
 c
 c               5.6 starting values of specific elastic energy, plastic,
@@ -4396,7 +4329,6 @@ c            subtract out the thermal strain increment from uddt (the
 c            strain increment for step) (We're actually going to do this
 c            internally)
 c
-!DIR$ VECTOR ALIGNED
       uddt_temps = zero
       if ( temperatures ) then
         call gp_temp_eps( span, uddt_temps, local_work%alpha_vec,
@@ -4409,7 +4341,6 @@ c            init block of nonlocal state variables. values array always
 c            allocated but with size (1,1) for std. local analyses.
 c            just makes passing args simpler.
 c
-!DIR$ VECTOR ALIGNED
       if( local_work%block_has_nonlocal_solids )
      &    local_work%nonlocal_state_blk = zero ! array
 c
@@ -4418,10 +4349,8 @@ c            rotations to identity.
 c
       if( .not. local_work%geo_non_flg ) then ! set to identity
        if( gpn .eq. 1 ) then
-!DIR$ VECTOR ALIGNED
          local_work%rot_blk_n1 = zero ! full array
          do igp = 1, local_work%num_int_points
-!DIR$ VECTOR ALIGNED
            do i = 1, mxvl
              local_work%rot_blk_n1(i,1,igp) = one
              local_work%rot_blk_n1(i,5,igp) = one
@@ -4446,7 +4375,6 @@ c            constitutive matrix.
 c
       uddt = uddt_displ + uddt_temps
       do i = 1, span
-!DIR$ VECTOR ALIGNED
        if( local_work%killed_status_vec(i) ) uddt(i,1:nstr) = zero
       end do
 
@@ -4471,7 +4399,6 @@ c
       if( local_work%block_has_nonlocal_solids )
      &    call drive_10_non_local ! finish nonlocal shared
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( .not. local_work%killed_status_vec(i) ) cycle
         cep(i,1:6,1:6) = zero
@@ -4786,12 +4713,10 @@ c              for each element in block, update stresses by
 c              [D-elastic] * uddt. uddt contains thermal increment +
 c              increment from imposed nodal displacements.
 c
-!DIR$ VECTOR ALIGNED
       stress_np1 = stress_n
 c
       do k = 1, 6
        do m = 1, 6
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            stress_np1(i,k) = stress_np1(i,k) +
      &                       local_cep(i,m,k) * uddt(i,m)
@@ -4991,7 +4916,6 @@ c
 c
       integer :: i
 c
-!DIR$ VECTOR ALIGNED
        do i = 1, span
          strain_np1(i,1) = strain_np1(i,1) + deps(i,1)
          strain_np1(i,2) = strain_np1(i,2) + deps(i,2)
@@ -5044,7 +4968,6 @@ c
       call getgpts( etype, int_order, gpn, xi, eta, zeta, weight )
       call shapef( etype, xi, eta, zeta, sf(1) )
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          gp_coords(i,1) = zero
          gp_coords(i,2) = zero
@@ -5059,7 +4982,6 @@ c
       ky = nnodel
       kz = ky + nnodel
       do enode = 1, nnodel
-!DIR$ VECTOR ALIGNED
         do i = 1, span
           gp_coords(i,1) = gp_coords(i,1)  +
      &                      sf(enode) * node_coords(i,enode)
@@ -5111,7 +5033,6 @@ c
       tp = transpose( matrix )
 c
       do j = 1, 6
-!DIR$ VECTOR ALIGNED
         do i = 1, 6
           symm_version(map(i),map(j)) = half * ( matrix(i,j) +
      &                                  tp(i,j) )
@@ -5176,7 +5097,6 @@ c
       integer :: i, j
 c
       do j = 1, ndof*nnode
-!DIR$ VECTOR ALIGNED
         do i = 1, span
            uenh(i,j) = ue(i,j) + half*due(i,j)
            uen1(i,j) = ue(i,j) + due(i,j)
@@ -5200,7 +5120,6 @@ c
      &  beta_fact, weight, factor
 c
       if( is_bar_elem ) then
-!DIR$ VECTOR ALIGNED
         do i = 1, span
           internal_energy = internal_energy + gp_energies(i) *
      &                      bar_vols(i)
@@ -5211,7 +5130,6 @@ c
       end if
 c
       if( is_link_elem ) then
-!DIR$ VECTOR ALIGNED
         do i = 1, span    ! no delta-pls work. link is linear
           internal_energy = internal_energy + gp_energies(i)
         end do
@@ -5219,7 +5137,6 @@ c
       end if
 
       if( itype .eq. 1 ) then   ! large strain
-!DIR$ VECTOR ALIGNED
         do i = 1, span
           factor = dfn1(i) * det_j(i) * beta_fact * weight
           internal_energy = internal_energy + gp_energies(i) * factor
@@ -5229,7 +5146,6 @@ c
       end if
 c
       if( itype .eq. 2 ) then   ! small strain
-!DIR$ VECTOR ALIGNED
         do i = 1, span
          factor = det_j(i) * beta_fact * weight
          internal_energy = internal_energy + gp_energies(i) * factor
@@ -5283,7 +5199,6 @@ c
       k = 1
       do i = 1, 6
        do j = 1, i
-!DIR$ VECTOR ALIGNED
          do ielem = 1, span
           full_cep(ielem,i,j) = ceps_blk(k,ielem,gpn)
           full_cep(ielem,j,i) = full_cep(ielem,i,j)
@@ -5295,12 +5210,10 @@ c
 c              compute stress @ n+1 = stress @ n + [Dt]* deps for
 c              each element in block at this integration point
 c
-!DIR$ VECTOR ALIGNED
       stress_np1(1:mxvl,1:6) = stress_n(1:mxvl,1:6)
 c
       do i = 1, 6
        do k = 1, 6
-!DIR$ VECTOR ALIGNED
          do ielem = 1, span
            stress_np1(ielem,i) = stress_np1(ielem,i) +
      &         full_cep(ielem,i,k) * deps_blk(ielem,k)
@@ -5316,7 +5229,6 @@ c
       k = 1
       do i = 1, 3
        do j = 1, i
-!DIR$ VECTOR ALIGNED
          do ielem = 1, span
           full_cep(ielem,i,j) = ceps_blk(k,ielem,gpn)
           full_cep(ielem,j,i) = full_cep(ielem,i,j)
@@ -5332,7 +5244,6 @@ c
 c
       do i = 1, 3
        do k = 1, 3
-!DIR$ VECTOR ALIGNED
          do ielem = 1, span
            stress_np1(ielem,i) =  stress_np1(ielem,i) +
      &         full_cep(ielem,i,k) * deps_blk(ielem,k)
@@ -5368,7 +5279,6 @@ c
       integer i, k, ii, jj
 c
       if( nrow_ceps_blk .eq. 21 ) then ! symmetric [D] 6x6
-!DIR$ VECTOR ALIGNED
         do i = 1, span
           gbl_ceps_blk(1,i,gpn)  = local_cep(i,1,1)
           gbl_ceps_blk(2,i,gpn)  = local_cep(i,2,1)
@@ -5381,7 +5291,6 @@ c
           gbl_ceps_blk(9,i,gpn)  = local_cep(i,4,3)
           gbl_ceps_blk(10,i,gpn) = local_cep(i,4,4)
        end do
-!DIR$ VECTOR ALIGNED
        do i = 1, span
           gbl_ceps_blk(11,i,gpn) = local_cep(i,5,1)
           gbl_ceps_blk(12,i,gpn) = local_cep(i,5,2)
@@ -5396,7 +5305,6 @@ c
           gbl_ceps_blk(21,i,gpn) = local_cep(i,6,6)
         end do
       elseif( nrow_ceps_blk .eq. 6 ) then ! symmetric [D] 3x3
-!DIR$ VECTOR ALIGNED
         do i = 1, span
           gbl_ceps_blk(1,i,gpn)  = local_cep(i,1,1)
           gbl_ceps_blk(2,i,gpn)  = local_cep(i,2,1)
@@ -5409,7 +5317,6 @@ c
           k = 1
           do i = 1, span
             do ii = 1, 6
-!DIR$ VECTOR ALIGNED
               do jj = 1, 6
                 gbl_ceps_blk(k,i,gpn)  = local_cep(i,ii,jj)
                 k = k +1

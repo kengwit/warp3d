@@ -54,7 +54,6 @@ c
 c              --- double precision arrays/vectors ---
 c
       double precision :: tol(mxcvtests)
-!dir$ attributes align: 64 :: u, v, a, du,idu, load,res, ifv, c, tol
       double precision, allocatable, dimension(:) :: u, v, a, du, idu,
      &                      load, res, ifv, c
 c
@@ -69,13 +68,11 @@ c
 c
 c              --- real arrays/vectors/scalars ---
 c
-!dir$ attributes align: 64::  times
       real :: times(mxtim,2)
       real :: strtm, time_limit
 c
 c              --- logical arrays/vectors/scalars ---
 c
-!dir$ attributes align: 64::trace, convrg
       logical ::
      &    halt, linmas, newstf, zrocon, newtrn,
      &    newmas, incflg, ifvcmp, input_ok, adaptive_flag,
@@ -88,19 +85,11 @@ c
      &    use_mpi, last_node_released, ! end of scalars
      &    trace(ntrc), convrg(10)
 c
-!dir$ attributes align: 64 :: lprops
 c
 c              --- integer arrays/vectors/scalars ---
 c
-!dir$ attributes align: 64 :: dstmap,cstmap
       integer, allocatable, dimension (:) :: dstmap, cstmap
 
-!dir$ attributes align: 64 :: cp, dcp, icp
-!dir$ attributes align: 64 :: matlst, lodlst, stprng 
-!dir$ attributes align: 64 :: bits, outmap, blk_ptr_head 
-!dir$ attributes align: 64 :: MPI_DOF_LOCAL, num_dof_local
-!dir$ attributes align: 64 :: proc_pids
-!dir$ attributes align: 64 :: elblks
       integer, allocatable, dimension (:,:) :: elblks
 c
       integer ::  !   gpmap(mxtgp),

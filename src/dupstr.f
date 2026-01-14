@@ -80,7 +80,6 @@ c            the total displacement increment from n ->
 c            n+1.                                      
 c                                                                               
       do  j = 1, totdof                                                         
-!DIR$ IVDEP
          do i = 1, span                                                         
             ue(i,j)  = sdispl(bedst(j,i))                                            
             due(i,j) = sdu(bedst(j,i))                                           
@@ -110,7 +109,6 @@ c
           element = felem + i - 1
           elem_ptr = dam_ptr(element)                                                        
           if( dam_state(elem_ptr) == 0 ) cycle ! not killable or not yet killed
-!DIR$ IVDEP
           do j = 1, totdof                                                     
             ue(i,j)  = zero                                                    
             due(i,j) = zero                                                    
@@ -132,7 +130,6 @@ c
             elem_ptr = dam_ptr(element) 
             if( dam_state(elem_ptr) == 0 ) cycle ! not killable                                           
             if( killed_status(i) ) then ! been fully removed
-!DIR$ IVDEP
               do j = 1, totdof                                                     
                 ue(i,j)  = zero                                                    
                 due(i,j) = zero  

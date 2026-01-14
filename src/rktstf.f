@@ -240,7 +240,6 @@ c
 c
       case( 300 )
         do j = 1, span
-!DIR$ VECTOR ALIGNED
               do i = 1, 300
                     ek(i,j) = local_ek(j,i)
               end do
@@ -248,7 +247,6 @@ c
 c
       case( 465 )
         do j = 1, span
-!DIR$ VECTOR ALIGNED
               do i = 1, 465
                     ek(i,j) = local_ek(j,i)
               end do
@@ -256,7 +254,6 @@ c
 c
       case( 666 )
         do j = 1, span
-!DIR$ VECTOR ALIGNED
               do i = 1, 666
                     ek(i,j) = local_ek(j,i)
               end do
@@ -264,7 +261,6 @@ c
 c
       case( 1830 )
         do j = 1, span
-!DIR$ VECTOR ALIGNED
               do i = 1, 1830
                     ek(i,j) = local_ek(j,i)
               end do
@@ -272,7 +268,6 @@ c
 c
       case default
         do j = 1, span
-!DIR$ VECTOR ALIGNED
               do i = 1, nrow_ek
                     ek(i,j) = local_ek(j,i)
               end do
@@ -310,7 +305,6 @@ c
       double precision :: vec(nterms), zero
       data zero / 0.0d00 /
 c
-!DIR$ VECTOR ALIGNED
       vec = zero
 c
       return

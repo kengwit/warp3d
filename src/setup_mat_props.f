@@ -156,7 +156,6 @@ c                the block. the modulus, nu, and thermal expansion
 c                coefficients have been already loaded into block
 c                data structures.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        sigma_curves(1:num_points_on_curves,i) =
      &          seg_curves(1:num_points_on_curves,2,first_curve)
@@ -177,7 +176,6 @@ c
       case( 1 )
 c
        if ( gpn .eq. 1 ) then
-!DIR$ VECTOR ALIGNED
          do i = 1, num_curves_in_set
           curve_no                   = seg_curve_table(i+1,curve_set)
           curve_temps(i)             = seg_curves_value(curve_no)
@@ -421,7 +419,6 @@ c
       logical local_debug
       data local_debug / .false. /
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        dsigma        = sigma_curves(2,i) - sigma_curves(1,i)
        depspls       = curve_plseps_values(2) - curve_plseps_values(1)
@@ -539,7 +536,6 @@ c                get the temperature at this gauss point for each
 c                element in the block. interpolate from node
 c                temperatures unless they are all zero.
 c
-!DIR$ VECTOR ALIGNED
       gp_temps(1:span) = zero
       if ( temps_node_to_process ) then
 c
@@ -547,7 +543,6 @@ c
         call shapef( etype, xi, eta, zeta, sf(1) )
 c
         do enode = 1, nnodel
-!DIR$ VECTOR ALIGNED
           do i = 1, span
             gp_temps(i) = gp_temps(i) +
      &                    sf(enode) * temps_node_blk(i,enode)

@@ -44,8 +44,6 @@ c
         alpha = (two + eps_stab)*third                                          
         beta  = (one - eps_stab)*third                                          
 c                                                                               
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
         do i = 1, span                                                          
 c                                                                               
 c                  save value for use in later calculations                     
@@ -86,8 +84,6 @@ c
         b (i,7,2) = beta * ( vol (i,7,1) - dummy_7 )                            
         b (i,8,2) = beta * ( vol (i,8,1) - dummy_8 )                            
       end do                                                                    
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
       do i = 1, span                                                            
 c                                                                               
 c        b (i,bpos1+j,1) = (vol (i,j, 2) - b (i,bpos1+j,2))                     

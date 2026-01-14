@@ -176,13 +176,11 @@ c
        case( 1,2,3,4,5, 7, 9, 12 )                                                                  
 c                                                                               
         do j = 1, nnode                                                           
-!DIR$ VECTOR ALIGNED
           do i = 1, span                                                         
              mel(j,i) = mel(j,i) + shape(j)*shape(j)*dj(i)*w*rho(i)               
          end do                                                                 
         end do                                                                    
 c                                                                               
-!DIR$ VECTOR ALIGNED
         do i = 1, span                                                            
           volume(i) = volume(i) + dj(i)*w                                        
           emass(i) = emass(i) + dj(i)*w*rho(i)                                   
@@ -195,13 +193,11 @@ c
          scalar = 1.0D0 / 6.0D0                                                     
          weight = scalar * w                                                        
          do j = 1, nnode                                                          
-!DIR$ VECTOR ALIGNED
           do i = 1, span                                                        
             mel(j,i) = mel(j,i) + shape(j)*shape(j)*dj(i)*weight*rho(i)         
           end do                                                                
          end do                                                                   
 c                                                                               
-!DIR$ VECTOR ALIGNED
          do i = 1, span                                                           
           volume(i) = volume(i) + dj(i)*weight                                  
           emass(i) = emass(i) + dj(i)*weight*rho(i)                             
@@ -214,13 +210,11 @@ c
          scalar = half                                                            
          weight = scalar*w                                                        
          do j = 1, nnode                                                          
-!DIR$ VECTOR ALIGNED
           do i = 1, span                                                        
             mel(j,i) = mel(j,i) + shape(j)*shape(j)*dj(i)*weight*rho(i)         
           end do                                                                
          end do                                                                   
 c                                                                               
-!DIR$ VECTOR ALIGNED
          do i = 1, span                                                           
           volume(i) = volume(i) + dj(i)*weight                                  
           emass(i)  = emass(i) + dj(i)*weight*rho(i)                             
@@ -267,7 +261,6 @@ c
 c              
          nnode = 2                                                                 
          do j = 1, nnode                                                 
-!DIR$ VECTOR ALIGNED
           do i = 1, span   
             x1 = ce_0(i,1); y1 = ce_0(i,nnode+1)
             z1 = ce_0(i,2*nnode+1)      
@@ -277,7 +270,6 @@ c
             mel(j,i) = mel(j,i) + rho(i) * area(i) * len * half    
           end do                                                                
          end do                                                                   
-!DIR$ VECTOR ALIGNED
          do i = 1, span                                                           
           volume(i) = area(i) * len                   
           emass(i)  = emass(i) + area(i) * len * rho(i)                                 

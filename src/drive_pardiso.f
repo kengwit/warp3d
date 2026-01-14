@@ -114,8 +114,6 @@ c
 c
       min_diagonal =  1.0d50
       max_diagonal = -1.0d50
-!DIR$ IVDEP
-!DIR$ VECTOR ALIGNED
       do i = 1, neq
        if( k_diag(i) .eq. zero ) cycle
        min_diagonal = min( min_diagonal, k_diag(i) )   
@@ -676,8 +674,6 @@ c
       i_old = ncoeff + 1; i_new = ncoeff + neq + 1
 c
       do i = neq, 1, -1
-!DIR$ IVDEP
-!DIR$ VECTOR ALIGNED
         do j = 1, kpt(i)
           i_new = i_new - 1
           i_old = i_old - 1

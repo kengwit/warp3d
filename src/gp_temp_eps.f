@@ -54,7 +54,6 @@ c
          call shapef( etype, xi, eta, zeta, sf(1) )
       end if
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          gp_dtemps(i) = zero
          gp_temps(i)  = zero
@@ -63,7 +62,6 @@ c
 c
       if( temper_increment ) then
          do enode = 1, nnodel
-!DIR$ VECTOR ALIGNED
            do i = 1, span
              gp_dtemps(i) = gp_dtemps(i) +
      &                      sf(enode) * dtemps_node_blk(i,enode)
@@ -77,7 +75,6 @@ c              in the block from nodal values.
 c
       if( temps_node_to_process ) then
         do enode = 1, nnodel
-!DIR$ VECTOR ALIGNED
           do i = 1, span
             gp_temps(i) = gp_temps(i) +
      &                    sf(enode) * temps_node_blk(i,enode)
@@ -91,7 +88,6 @@ c              in the block from nodal values.
 c
       if( temperatures_init ) then
         do enode = 1, nnodel
-!DIR$ VECTOR ALIGNED
           do i = 1, span
             gp_rtemps(i) = gp_rtemps(i) +
      &                     sf(enode) * temps_init_node_blk(i,enode)
@@ -180,18 +176,15 @@ c
 c              The user-specified initial temperature at t=0
 c              passed in here but not used in current formulation.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         temps_n(i) = temps_n1(i) - dtemps(i)
       end do 
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        tn  = temps_n(i)  - alpha_zero
        tn1 = temps_n1(i) - alpha_zero
        deps_theta(i,1:6) = alpha_n1(i,1:6)*tn1 - alpha_n(i,1:6)*tn
       end do 
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        deps(i,1:6) = deps(i,1:6) - deps_theta(i,1:6)
       end do
@@ -269,7 +262,6 @@ c           current temperature * current  CTEs
 c           adjust for reference temp.
 c           \alpha here can be anisotropic
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          dtn1 = gp_temps(i) -  gp_rtemps(i)
          eps_theta_n1(i,1) =  alpha_n1(i,1)*dtn1

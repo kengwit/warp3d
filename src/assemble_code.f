@@ -883,7 +883,6 @@ c
       if( srow .eq. neqns ) return                                              
 c                                                                               
       start_loc = row_start_index(srow)-1                                       
-!DIR$ IVDEP                                                                     
       do j = 1, k_ptrs(srow)                                                    
          k_coeffs(start_loc+j) = coeff_row(k_indexes(start_loc+j))              
          coeff_row(k_indexes(start_loc+j)) = zero                               
@@ -919,7 +918,6 @@ c
 c                                                                               
       do erow = 1, 24                                                           
        if( local_scol(erow) .ne. srow ) cycle                                   
-!DIR$ IVDEP                                                                     
        do ecol = 1, 24                                                          
          scol = local_scol(ecol) ! dof_eqn_map(edest(ecol,j))                   
          if ( scol .lt. srow ) cycle ! lower triange                            
@@ -942,7 +940,6 @@ c
 c                                                                               
       do erow = 1, 30                                                           
        if( local_scol(erow) .ne. srow ) cycle                                   
-!DIR$ IVDEP                                                                     
        do ecol = 1, 30                                                          
          scol = local_scol(ecol) ! dof_eqn_map(edest(ecol,j))                   
          if( scol .lt. srow ) cycle                                             
@@ -965,7 +962,6 @@ c
 c                                                                               
       do erow = 1, 36                                                           
        if( local_scol(erow) .ne. srow ) cycle                                   
-!DIR$ IVDEP                                                                     
        do ecol = 1, 36                                                          
          scol = local_scol(ecol) ! dof_eqn_map(edest(ecol,j))                   
          if( scol .lt. srow ) cycle                                             
@@ -988,7 +984,6 @@ c
 c                                                                                
       do erow = 1, 60                                                           
        if( local_scol(erow) .ne. srow ) cycle                                   
-!DIR$ IVDEP                                                                     
        do ecol = 1, 60                                                          
          scol = local_scol(ecol) ! dof_eqn_map(edest(ecol,j))                   
          if( scol .lt. srow ) cycle                                             
@@ -1011,7 +1006,6 @@ c
 c                                                                               
       do erow = 1, totdof                                                       
        if( local_scol(erow) .ne. srow ) cycle                                   
-!DIR$ IVDEP                                                                     
         do ecol = 1, totdof                                                     
           scol = local_scol(ecol) ! dof_eqn_map(edest(ecol,j))                  
           if( scol .lt. srow ) cycle                                            

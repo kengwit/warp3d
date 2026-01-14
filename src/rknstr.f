@@ -423,7 +423,6 @@ c
       end if
 c
       if( local_work%is_cohes_elem ) then  ! all zero if no temps
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            temp_ref = local_work%temps_ref_node_blk(i,1)
            d_temp   = local_work%dtemps_node_blk(i,1)
@@ -890,14 +889,10 @@ c
       fnnodel = nnodel
 c
       if( average_case .eq. 1) then
-!DIR$ VECTOR ALIGNED
          sum1(1:span) = zero
-!DIR$ VECTOR ALIGNED
          sum2(1:span) = zero
-!DIR$ VECTOR ALIGNED
          sum3(1:span) = zero
          do enode = 1, nnodel
-!DIR$ VECTOR ALIGNED
             do i = 1, span
                sum1(i) = sum1(i) + dtemps_node_blk(i,enode)
                sum2(i) = sum2(i) + temps_node_blk(i,enode)
@@ -905,7 +900,6 @@ c
             end do
          end do
          do enode = 1, nnodel
-!DIR$ VECTOR ALIGNED
             do i = 1, span
                avg1 = sum1(i) / fnnodel
                avg2 = sum2(i) / fnnodel
@@ -918,16 +912,13 @@ c
       end if
 c
       if( average_case .eq. 2) then
- !DIR$ VECTOR ALIGNED
         sum1(1:span) = zero
          do enode = 1, nnodel
-!DIR$ VECTOR ALIGNED
             do i = 1, span
                sum1(i) = sum1(i) + temps_node_blk(i,enode)
             end do
          end do
          do enode = 1, nnodel
-!DIR$ VECTOR ALIGNED
             do i = 1, span
                avg1 = sum1(i) / fnnodel
                temps_node_blk(i,enode) = avg1
@@ -980,16 +971,13 @@ c                    for each property, redefine the nodal values
 c                    to be the simple average of all the nodal values.
 c
       do prop = 1, num_props
-!DIR$ VECTOR ALIGNED
          sum(1:span) = zero
          do enode = 1, nnode
-!DIR$ VECTOR ALIGNED
             do elem = 1, span
                sum(elem) = sum(elem) + enode_mat_props(enode,elem,prop)
             end do
          end do
          do enode = 1, nnode
-!DIR$ VECTOR ALIGNED
             do elem = 1, span
                avg = sum(elem) / nnode
                enode_mat_props(enode,elem,prop) = avg
@@ -1031,7 +1019,6 @@ c
 c
       integer :: i
 c
-!DIR$ IVDEP
       do i = 1, span
          local_work%e_vec(i)         = props(7,i)
          local_work%e_vec_n(i)       = props(7,i)
@@ -1095,7 +1082,6 @@ c
 c
       integer :: i
 c
-!DIR$ IVDEP
       do i = 1, span
 c
          local_work%e_vec(i)       = props(7,i)
@@ -1158,7 +1144,6 @@ c
       integer :: i, bit_flags
       integer, intrinsic :: iand
 c
-!DIR$ IVDEP
       do i = 1, span
         local_work%e_vec(i)       = props(7,i)
         local_work%e_vec_n(i)     = props(7,i)
@@ -1202,7 +1187,6 @@ c
 c
       bit_flags = iprops(24,1)
 c
-!DIR$ IVDEP
       do i = 1, span
         if ( iand(iprops(30,i),1) .eq. 0 )
      &         local_work%nuc_vec(i) = .false.
@@ -1270,7 +1254,6 @@ c                     59        gamma_u         gp_delta_u
 c                     60 sig_tol
 c                     61-64 <available>
 c
-!DIR$ IVDEP
       do i = 1, span
 c       
         local_work%e_vec(i)       = props(7,i)
@@ -1353,7 +1336,6 @@ c
       local_debug = .false.
       matnum = local_work%matnum
 c
-!DIR$ IVDEP
       do i = 1, span
 c       
         local_work%e_vec(i)       = props(7,i)
@@ -1441,7 +1423,6 @@ c
 c
       matnum = local_work%matnum
 c
-!DIR$ IVDEP
       do i = 1, span
 c       
         local_work%e_vec(i)       = props(7,i)
@@ -1510,7 +1491,6 @@ c
 c
       matnum = local_work%matnum
 c
-!DIR$ IVDEP
       do i = 1, span
 c
         local_work%e_vec(i)       = props(7,i)
@@ -1674,7 +1654,6 @@ c                     a = trans[ b ]
 c
       if( n .eq. 3 ) then
          do i = 1, 3
-!DIR$ VECTOR ALIGNED
             do j = 1, 3
                a(i,j) = b(j,i)
             end do
@@ -1683,7 +1662,6 @@ c
       end if
 c
        do i = 1, 6
-!DIR$ VECTOR ALIGNED
          do j = 1, 6
             a(i,j) = b(j,i)
          end do
@@ -1721,7 +1699,6 @@ c
       spreadns(3,3) = ns(3)
 c
       do i = 1, 3
-!DIR$ VECTOR ALIGNED
         do j = 1, 3
          A(i,j) = spreadbs(i,j) * spreadns(i,j)
          trans_A(j,i) = A(i,j)
@@ -2119,8 +2096,6 @@ c
       do j = 1, nlengths
         nodea = node_pairs(j,1)
         nodeb = node_pairs(j,2)
-!DIR$ IVDEP
-!DIR$ VECTOR ALIGNED
         do i = 1, span
           xa = node_coords(i,nodea)
           ya = node_coords(i,nodea+nnodel)
@@ -2136,8 +2111,6 @@ c
       scale_factor = half
       if( linear ) scale_factor = one
 c
-!DIR$ IVDEP
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        lengths(i) = local_sums(i) * rnlengths * scale_factor
       end do

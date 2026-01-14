@@ -230,7 +230,6 @@ c
       if( ngp .ne. 8 ) then                                                     
         do k = 1, ngp                                                           
          do  j = 1, hist_size                                                   
-!DIR$ VECTOR ALIGNED
             do  i = 1, span                                                     
                history_local(i,j,k) = history_global(j,k,i)                     
             end do                                                              
@@ -242,7 +241,6 @@ c
 c                number of gauss points = 8, unroll.                            
 c                                                                               
       do  j = 1, hist_size                                                      
-!DIR$ VECTOR ALIGNED
         do  i = 1, span                                                         
             history_local(i,j,1) = history_global(j,1,i)                        
             history_local(i,j,2) = history_global(j,2,i)                        

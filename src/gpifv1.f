@@ -68,8 +68,6 @@ c
      &                    local_work%shape(1,gpn), type, nnode )                
 c                                                                               
           do j = 1, totdof                                                      
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
             do i = 1, span                                                      
                eleifv(i,j) = eleifv(i,j) +                                      
      &                       b(i,j,1) * urcs_blk_n1(i,1) * w * dj(i) +          
@@ -107,8 +105,6 @@ c
      &                 local_work%urcs_blk_n1(1,1,gpn),                         
      &                 cs_blk_n1 )                                              
           do j = 1, totdof                                                      
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
             do i = 1, span                                                      
                eleifv(i,j) = eleifv(i,j) +                                      
      &                       b(i,j,1)*cs_blk_n1(i,1)*w*dj(i) +                  
@@ -126,8 +122,6 @@ c                       small displacement formulation. the urcs
 c                       are stresses. no transformation needed.                 
 c                                                                               
       do j = 1, totdof                                                          
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
         do i = 1, span                                                          
            eleifv(i,j) = eleifv(i,j) +                                          
      &                   b(i,j,1)*urcs_blk_n1(i,1)*w*dj(i) +                    
@@ -143,9 +137,8 @@ c
 c                       update gauss point contribution to volume               
 c                       of element.                                             
 c                                                                               
- 9000 continue                                                                  
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
+ 9000 continue    
+                                                   
       do i = 1, span                                                            
         element_volumes(i) = element_volumes(i)   +   w * dj(i)                 
       end do                                                                    
@@ -196,7 +189,6 @@ c                        urcs.. is engineering stress or Cauchy stress
 c 
 c                        force ordering: Px1, Px2, Py1, Py2, Pz1, Pz2   
 c      
-!DIR$ VECTOR ALIGNED                                                            
       do i = 1, span   
         x1 = ce(i,1)
         x2 = ce(i,2)

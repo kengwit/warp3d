@@ -61,14 +61,12 @@ c               to prevent susequent uninitialzed variable computations
 c               should stress update fail (eg, Gurson does not converge)
 c
       if( debug ) write (iout,*) ' null point calcs'
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         null_point(i) = abs( deps(i,1) ) + abs( deps(i,2) ) +
      &                  abs( deps(i,3) ) + abs( deps(i,4) ) +
      &                  abs( deps(i,5) ) + abs( deps(i,6) )
      &                  .le. toler * chk_yld_eps
        active_point(i) = .not. null_point(i)
-!DIR$ VECTOR ALIGNED
        stress_n1(7:nstrs,i) = zero
       end do
 c
@@ -76,14 +74,12 @@ c
       if( .not. process_block ) then !  all points are null
         state    = -1
         iword(1) = state
-!DIR$ VECTOR ALIGNED
         do i = 1, span
          stress_n1(:,i)          = stress_n(:,i)
          stress_n1_elas(i,:,gpn) = zero
          history1(i,1:5,gpn)     = history(i,1:5,gpn)
          history1(i,6,gpn)       = dword
          history1(i,7:9,gpn)     = zero
-!DIR$ VECTOR ALIGNED
          history1(i,10:15,gpn)   = history(i,10:15,gpn) ! no eps elastic change
        end do
        if ( debug ) write(iout,9000)
@@ -98,14 +94,12 @@ c
 c               1.  trial elastic stress at n+1. set actual
 c                   stress at n+1 as trial stress.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
 c
 c                      strain for trial stress computation at n+1
 c                      is elastic strain at n + increment of
 c                      mechaical strain over step over step.
 c
-!DIR$ VECTOR ALIGNED
         trial_eps(1:6) = history(i,10:15,gpn) + deps(i,1:6)
 c
 c                      trial elastic stress using strain at n+1 and
@@ -123,7 +117,6 @@ c
         stress_n1(5,i) = shear_mod * trial_eps(5)
         stress_n1(6,i) = shear_mod * trial_eps(6)
 c
-!DIR$ VECTOR ALIGNED
         stress_n1_elas(i,1:6,gpn) = stress_n1(1:6,i)
 c
       end do ! over span
@@ -141,7 +134,6 @@ c
 c              2.  hydrostatic and mises components of trial
 c                  elastic stress at n+1
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         p_trial(i) = - ( stress_n1(1,i) + stress_n1(2,i) +
      &                   stress_n1(3,i) ) * third
@@ -173,11 +165,9 @@ c                  stress. save in history as well so update
 c                  routine knows about change in curve.
 c
 c
-!DIR$ VECTOR ALIGNED
       flow_stress(1:span) =  history(1:span,2,gpn)
 c
       if ( segmental .and. curve_type .eq. 1 ) then
-!DIR$ VECTOR ALIGNED
           do i = 1, span
             plastic_strain = history(i,1,gpn)
             now_blk_relem = i
@@ -194,7 +184,6 @@ c                  gurson- tvergaard yield function for the trial
 c                  elastic stress state. current matrix stress is
 c                  history(2), current void fraction is history(5).
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         gurson = f0(i) .gt. zero .or. nucleation(i)
         if( gurson ) then
@@ -223,7 +212,6 @@ c                  extrapolated displacements. linear points must
 c                  remain linear during this update.
 c
       process_block = .false.
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         previously_linear = history(i,1,gpn) .eq. zero
         now_nonlinear     = (history(i,1,gpn) .gt. zero) .or.
@@ -244,7 +232,6 @@ c              6.  for elements that are still linear, compute
 c                  updated strain energy density. update accumulative
 c                  elastic strains
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( .not. nonlinear_flag(i) ) then
           stress_n1(7,i) = stress_n(7,i) +
@@ -257,7 +244,6 @@ c
      &    + deps(i,6) * (stress_n1(6,i) + stress_n(6,i)) )
           stress_n1(8,i) = stress_n(8,i)
           stress_n1(9,i) = stress_n(9,i)
-!DIR$ VECTOR ALIGNED
           history1(i,10:15,gpn) = history(i,10:15,gpn) + deps(i,1:6)
         end if
       end do
@@ -275,7 +261,6 @@ c                  those for nonlinear elements will be modified.
 c                  ** except elastic strains **
 c
       do j = 1, 9
-!DIR$ VECTOR ALIGNED
         history1(1:span,j,gpn)  = history(1:span,j,gpn)
       end do
 
@@ -305,7 +290,6 @@ c     ========
       implicit none
 c
       if( .not. segmental ) then
-!DIR$ VECTOR ALIGNED
            do i = 1, span
               if( n_power(i) .gt. zero ) then
                  h = e(i) * (0.9999d0*e(i)) / ( e(i)-0.9999d0*e(i))
@@ -318,7 +302,6 @@ c
 c
       iword(1) = -1
       iword(2) = 0
-!DIR$ VECTOR ALIGNED
       do i = 1, span
           history(i,1,gpn)  = zero        ! equiv plastic strain
           history(i,2,gpn)  = sigma_o(i)  ! current static yld stress
@@ -329,7 +312,6 @@ c                   4                     ! current H-prime
           history(i,7,gpn)  = zero        ! dep GT model
           history(i,8,gpn)  = zero        ! deq GT model
           history(i,9,gpn)  = zero        ! q   GT model
-!DIR$ VECTOR ALIGNED
           history(i,10:15,gpn) = zero     ! accumulated elastic strains
       end do
 c
@@ -337,7 +319,6 @@ c               compute initial elastic strain values using user-defined
 c               initial stresses pre-loaded into stress_n.
 c               these are zero unless model has user-initial stresses
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         e_n  = ym_n(i)  ! at time 0 of simulation
         if( e_n .le. zero ) cycle ! sanity for bad user-input
@@ -3345,7 +3326,6 @@ c              strain point is currently undergoing plastic loading.
 c
       nonlinear_points = .false.
       nonlin_point    = 0
-!DIR$ VECTOR ALIGNED
       dword(1:span) = history1(1:span,6)
 c
       inc_factor = 2
@@ -3363,7 +3343,6 @@ c              process linear strain points
 c
       cep = zero
 c
-!DIR$ VECTOR ALIGNED
       do  i = 1, span
        if( killed_status(i) ) cycle
        if( state(i) .ne. -1 ) cycle
@@ -3400,7 +3379,6 @@ c              be the contact stress).
 c              a continnum tangent at the contact stress point on the
 c              yield surface is computed.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( killed_status(i) ) cycle
         if( state(i) .ne. 1 ) cycle
@@ -3419,7 +3397,6 @@ c
       end do
 c
       if( iter .le. 1 ) then
-!DIR$ VECTOR ALIGNED
         do i = 1, span
           if( state(i) .ne. 1 ) cycle
             dep(i) = zero
@@ -3446,7 +3423,6 @@ c
      &    stress_trial(i,4), stress_trial(i,5), stress_trial(i,6)
       end if
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( killed_status(i) ) cycle
         if( state(i) .ne. 1 ) cycle
@@ -3463,7 +3439,6 @@ c            3) process terms of trial elastic stress state at n+1.
 c               get pressure, equivalent stress and yield surface
 c               normal.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( killed_status(i) ) cycle
         if( state(i) .ne. 1 ) cycle
@@ -3502,7 +3477,6 @@ c
 c
 c                  4a)  a1 and a1 from Eq. (4)
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( killed_status(i) ) cycle
         if( state(i) .ne. 1 ) cycle
@@ -3522,7 +3496,6 @@ c                  4c)  b1 and b2 from Eq. (15). need to evaluate
 c                       A(ebarp) for nucleation and its derivative
 c                       wrt to ebarp.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( killed_status(i) ) cycle
         if( state(i) .ne. 1 ) cycle
@@ -3539,7 +3512,6 @@ c
         end if
       end do
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         if( killed_status(i) ) cycle
         if( state(i) .ne. 1 ) cycle
@@ -3681,7 +3653,6 @@ c                 7b) [D] (2) Eq. (17) and pg. CT-EF-7
 c                 7c) [D] (4) Eq. (17) and pg. CT-EF-9. exercise the
 c                     symmetry option by default
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        if( killed_status(i) ) cycle
        if( state(i) .ne. 1 ) cycle
@@ -3730,7 +3701,6 @@ c                 7d) [D] (3) Eq. (17) and pg. CT-EF-8. multiply in
 c                     the weight factor and determinant of coord.
 c                     jacobian.
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        if( killed_status(i) ) cycle
        if( state(i) .ne. 1 ) cycle

@@ -52,15 +52,12 @@ c                       done for all elements in the block for this
 c                       material (gauss) point nuber. take advantage of         
 c                       sparsity in [B] during multiply.                        
 c                                                                               
-!DIR$ VECTOR ALIGNED                                                            
       deps = 0.0d00                                                             
 c                                                                               
       bpos1 = nnode                                                             
       bpos2 = 2*nnode                                                           
 c                                                                               
       do j = 1, nnode                                                           
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
          do i = 1,span                                                          
            deps(i,1) = deps(i,1) +  b(i,j,1) * due(i,j) +                       
      &                              b(i,bpos1+j,1) * due(i,bpos1+j) +           
@@ -127,15 +124,12 @@ c         the block.
 c                                                                               
       call blcmp_cohes( span, b, rot, shape, etype,  nnode )                    
 c                                                                               
-!DIR$ VECTOR ALIGNED                                                            
       dgstrn = zero                                                             
 c                                                                               
       bpos1 = nnode                                                             
       bpos2 = 2*nnode                                                           
 c                                                                               
       do j = 1, nnode                                                           
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
          do i = 1, span                                                         
            dgstrn(i,1)= dgstrn(i,1)+b(i,j,1) * due(i,j) +                       
      &                              b(i,bpos1+j,1) * due(i,bpos1+j) +           
@@ -153,8 +147,6 @@ c                       update the accumulated displacement jumps.
 c                       dgstrs is total "strain" at end of step.                
 c                       dgstrn is total "strain" increment over step.           
 c                                                                               
-!DIR$ IVDEP                                                                     
-!DIR$ VECTOR ALIGNED                                                            
       do i = 1, span                                                            
          dgstrs(i,1) = dgstrs(i,1) + dgstrn(i,1)                                
          dgstrs(i,2) = dgstrs(i,2) + dgstrn(i,2)                                
@@ -217,10 +209,8 @@ c
       double precision, parameter :: zero = 0.0d00                              
       logical, parameter :: local_debug = .false.                                              
 c                                                                               
-!DIR$ VECTOR ALIGNED                                                            
       deps = zero                                                             
 c
-!DIR$ VECTOR ALIGNED                                                            
       do i = 1, span
         x1 = ce(i,1)
         x2 = ce(i,2)
@@ -310,7 +300,6 @@ c              assumes incompressibility.
 c
       if( local_debug ) write(iout,*) '.. compute bar volumes, areas'         
 c
-!DIR$ VECTOR ALIGNED                                                            
       do i = 1, span
         x1 = ce_0(i,1)
         x2 = ce_0(i,2)
@@ -379,7 +368,6 @@ c
       double precision, parameter :: zero = 0.0d0, half = 0.5d0                              
       logical, save :: local_debug = .false.    
 c                                                                               
-!DIR$ VECTOR ALIGNED                                                            
       do i = 1, span
         du_x  = due(i,2) - due(i,1)
         du_y  = due(i,4) - due(i,3)

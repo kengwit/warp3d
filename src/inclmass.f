@@ -103,7 +103,6 @@ c
       do i = 1, num_enode                                                       
         k = i + num_enode                                                       
         l = i + num_enode + num_enode                                           
-!DIR$ VECTOR ALIGNED                                                            
         do j = 1, span                                                          
            mel(j,i) =  mmat(i,j) * nfac                                         
            mel(j,k) =  mmat(i,j) * nfac                                         
@@ -114,7 +113,6 @@ c
       if( symmetric_assembly ) then                                             
            do i = 1, totdof                                                     
             k = dcp(i)                                                          
-!DIR$ VECTOR ALIGNED                                                            
             do j = 1, span                                                      
               emat(k,j) = emat(k,j) + mel(j,i)                                  
             end do                                                              
@@ -122,7 +120,6 @@ c
       else                                                                      
            do i = 1, totdof                                                     
             k = (i-1)*totdof + i ! location of diagonal                         
-!DIR$ VECTOR ALIGNED                                                            
             do j = 1, span                                                      
                emat(k,j) = emat(k,j) + mel(j,i)                                 
             end do                                                              

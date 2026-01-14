@@ -267,7 +267,6 @@ c           (6)-(11) -- back stress for kinematic hardening
 c
       iword(1) = 3
       iword(2) = 0
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          kn           = sigma_o(i) / root3
          history(i,1) = zero
@@ -545,7 +544,6 @@ c
 c
 c              elastic strains at n + 1
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          e_n1  = ym(i)
          nu_n1 = nu(i)
@@ -565,7 +563,6 @@ c
 c                d(U_p) = avg mises sgtress * increment in
 c                         plastic epsbar
 c
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        cgn1(i,8) = cgn(i,8)
        cgn1(i,9) = cgn(i,9)
