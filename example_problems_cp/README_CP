@@ -1,4 +1,4 @@
-Last Updated: APril 11, 2017
+Last Updated: January 17, 2026 rhd
 
 This directory contains several example input files demonstrating various
 features of the crystal plasticity (CP) model.
@@ -32,11 +32,3 @@ features of the crystal plasticity (CP) model.
    This can be viewed as a physical Hall-Petch-type effect.
    The simulations generate files needed for ParaView post-processing.
 
-3. The model in the mpi_restart directory demonstrates running
-   the crystal plasticity model in parallel with MPI domain decomposition.  It also
-   demonstrates that the restart capability of WARP3D works with the CP material
-   model, including restarts of unhomogenized models where the angles are input
-   from a separate flat file.
-   Results files are generated for post-processing with ParaView.
-   
- 
