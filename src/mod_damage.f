@@ -4,7 +4,7 @@ c     *                   f-90 module damage_data                    *
 c     *                                                              *          
 c     *                       written by : rhd                       *          
 c     *                                                              *          
-c     *              last modified : 9/19/2021 rhd                   *          
+c     *              last modified : 9/14/26 rhd                     *          
 c     *                                                              *          
 c     *     define the variables and data structures to support      *          
 c     *     crack growth using damage parameters (e.g., the Gurson   *          
@@ -25,7 +25,7 @@ c
       double precision ::  del_poros(mxstp_store), regular_points(10,2), 
      &                     del_deff(mxstp_store)
 c
-      integer :: user_kill_list_now(100)      
+      integer, allocatable :: user_kill_list_now(:)      
 c                                                                               
 c                     scalar double precision/reals                             
 c                                                                               

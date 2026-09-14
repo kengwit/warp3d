@@ -3829,7 +3829,7 @@ c     *              subroutine incrack_delete_elements              *
 c     *                                                              *          
 c     *                       written by : rhd                       *          
 c     *                                                              *          
-c     *                   last modified : 12/4/2019 rhd              *          
+c     *                   last modified : 9/14/2026 rhd              *          
 c     *                                                              *          
 c     *            user-directed element deletion for crack growth   *          
 c     *                                                              *          
@@ -3853,8 +3853,9 @@ c
 c              locals
 c
       integer :: list_size, lenlst, errnum, elem, icn,
-     &           iplist, bad_count, temp_int
+     &           iplist, bad_count, temp_int, isize
       integer, allocatable :: ele_intlst(:)
+      integer, external :: iszlst
       logical :: debug, bad_list
       logical, external :: matchs, numi
       double precision :: dumd
@@ -3889,7 +3890,7 @@ c      end if
 c
       num_user_kill_elems = 0
       if( matchs('elem',4) ) call splunj   ! optional word
-      allocate( ele_intlst(20) )
+      allocate( ele_intlst(200) ) ! will be resized as needed
       call scan
       call trlist_allocated( ele_intlst, list_size, 
      &                       noelem, lenlst, errnum )
@@ -3928,6 +3929,13 @@ c
 c
 
       icn = 0; iplist = 1; bad_list = .false.; bad_count = 0
+      if( allocated( user_kill_list_now ) ) then
+        deallocate( user_kill_list_now )
+        num_user_kill_elems = 0
+      end if
+      isize = iszlst( ele_intlst, lenlst )
+      allocate( user_kill_list_now(isize) ) 
+c
       do while ( iplist .ne. 0 )
         call trxlst( ele_intlst, lenlst, iplist, icn, elem )
         if( elem <= 0 .or. elem > noelem ) then
@@ -3943,14 +3951,12 @@ c
             cycle
         end if
         num_user_kill_elems = num_user_kill_elems + 1 
-        if( num_user_kill_elems > 100 ) then
-          write(out,9070) 100
-          num_error = num_error + 1
-          bad_list = .true.
-          exit        
-        end if
         user_kill_list_now(num_user_kill_elems) = elem
       end do  ! extracting elements from list
+      if( isize .ne. num_user_kill_elems ) then
+        write(out,9070) isize, num_user_kill_elems
+        call die_abort
+      end if
 c                                                                               
 c              read/processed. cleanup.
 c
@@ -3986,6 +3992,7 @@ c
  9050 format(/1x,'>>>>> FATAL ERROR: delete_elements inconsistency',
      &   /,14x,'job terminated now ...',/)
  9060 format(/1x,'>>>>> error: further messages suppressed ...' )
- 9070 format(/1x,'>>>>> error: too many elements in list. limit: ',i4 )
+ 9070 format(/1x,'>>>>> FATAL ERROR: isize, num_user_kill_elems',
+     &  /,       '      do not match: ', i8, 1x, i8 )
 c
       end
